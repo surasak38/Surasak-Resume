@@ -5,7 +5,7 @@ import { Editor } from "@/components/admin/editor";
 import { isAuthenticated } from "@/lib/auth";
 import { readResume, storageName } from "@/lib/resume";
 
-export const metadata: Metadata = { title: "Admin", robots: { index: false } };
+export const metadata: Metadata = { title: "Editor" };
 
 async function AdminGate() {
   if (!(await isAuthenticated())) redirect("/admin/login");

@@ -42,4 +42,5 @@ next-env.d.ts
 
 # resume content saved by the file driver
 /data/*.json
+/data/uploads/
 !.env.example

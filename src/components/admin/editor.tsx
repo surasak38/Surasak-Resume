@@ -4,16 +4,30 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { logout, saveResume } from "@/app/admin/actions";
 import { ThemeToggle } from "@/components/site/theme-toggle";
-import { formatPeriod } from "@/lib/format";
-import { resumeSchema, type Education, type Experience, type Link, type Project, type Resume, type SectionKey, type SkillGroup } from "@/lib/schema";
-import { ListField, TextArea, TextField, Toggle } from "./fields";
+import { formatPeriod, tr } from "@/lib/i18n";
+import {
+  galleryKinds,
+  resumeSchema,
+  type App,
+  type Education,
+  type Experience,
+  type GalleryItem,
+  type GalleryKind,
+  type Link,
+  type Resume,
+  type SectionKey,
+  type SkillGroup,
+  type SpokenLanguage,
+} from "@/lib/schema";
+import { FileField, ImagesField, LocalizedField, LocalizedLines, SelectField, TagsField, TextField, Toggle } from "./fields";
 import { ListEditor } from "./list-editor";
 
 const tabs = [
   { key: "profile", label: "Profile" },
   { key: "experience", label: "Experience" },
-  { key: "projects", label: "Projects" },
-  { key: "skills", label: "Skills" },
+  { key: "apps", label: "Apps" },
+  { key: "gallery", label: "Certificates" },
+  { key: "skills", label: "Skills & languages" },
   { key: "education", label: "Education" },
   { key: "links", label: "Links" },
   { key: "sections", label: "Visibility" },
@@ -24,11 +38,22 @@ type Tab = (typeof tabs)[number]["key"];
 const sectionLabels: Record<SectionKey, string> = {
   about: "About",
   experience: "Experience",
-  projects: "Projects",
-  skills: "Skills",
+  apps: "Apps",
+  gallery: "Certificates & activities",
+  skills: "Skills & languages",
   education: "Education",
   contact: "Contact",
 };
+
+const kindLabels: Record<GalleryKind, string> = {
+  certificate: "Certificate",
+  training: "Training",
+  competition: "Competition",
+  activity: "Activity",
+};
+
+const empty = () => ({ en: "", th: "" });
+const label = (v: { en: string; th: string }) => tr(v, "en");
 
 type Status = { kind: "idle" } | { kind: "saved"; at: string } | { kind: "error"; message: string };
 
@@ -61,7 +86,7 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
       }
     });
 
-  // Cmd/Ctrl+S saves.
+  // Cmd/Ctrl+S publishes.
   const saveRef = useRef(save);
   useEffect(() => {
     saveRef.current = save;
@@ -79,7 +104,7 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
 
   const patch = <K extends keyof Resume>(key: K, value: Resume[K]) => {
     setData((d) => ({ ...d, [key]: value }));
-    if (status.kind !== "idle") setStatus({ kind: "idle" });
+    setStatus((s) => (s.kind === "idle" ? s : { kind: "idle" }));
   };
   const profile = (p: Partial<Resume["profile"]>) => patch("profile", { ...data.profile, ...p });
 
@@ -91,26 +116,29 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
           <span className="hidden rounded-full border border-rule px-2 py-0.5 text-xs text-muted sm:inline" title="Where your data is stored">
             {{ redis: "Redis", blob: "Vercel Blob", file: "Local file" }[storage] ?? storage}
           </span>
-          <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          <div className="ml-auto flex items-center gap-1 sm:gap-3">
             <AnimatePresence mode="wait">
               <motion.span
                 key={status.kind + (dirty ? "d" : "")}
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
-                className={`hidden text-sm md:inline ${status.kind === "error" ? "" : "text-muted"}`}
+                className="hidden text-sm text-muted md:inline"
               >
-                {status.kind === "error" ? "Not saved" : dirty ? "Unsaved changes" : status.kind === "saved" ? `Published at ${status.at}` : "All changes published"}
+                {status.kind === "error" ? "Not published" : dirty ? "Unpublished changes" : status.kind === "saved" ? `Published at ${status.at}` : "All changes published"}
               </motion.span>
             </AnimatePresence>
-            <a href="/" target="_blank" className="rounded-md px-3 py-2 text-sm text-muted transition-colors hover:text-ink">
-              View site
+            <a href="/en" target="_blank" className="rounded-md px-2 py-2 text-sm text-muted transition-colors hover:text-ink">
+              View EN
+            </a>
+            <a href="/th" target="_blank" className="rounded-md px-2 py-2 text-sm text-muted transition-colors hover:text-ink">
+              TH
             </a>
             <ThemeToggle />
             <button
               onClick={save}
               disabled={pending || !dirty}
-              className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-paper transition-opacity disabled:opacity-40"
+              className="ml-1 rounded-md bg-ink px-4 py-2 text-sm font-medium text-paper transition-opacity disabled:opacity-40"
             >
               {pending ? "Publishing…" : "Publish"}
             </button>
@@ -120,13 +148,7 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
 
       <AnimatePresence>
         {status.kind === "error" && (
-          <motion.div
-            role="alert"
-            initial={{ height: 0 }}
-            animate={{ height: "auto" }}
-            exit={{ height: 0 }}
-            className="overflow-hidden bg-ink text-paper"
-          >
+          <motion.div role="alert" initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden bg-ink text-paper">
             <p className="mx-auto max-w-6xl px-4 py-3 text-sm md:px-8">{status.message}</p>
           </motion.div>
         )}
@@ -142,9 +164,7 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
                   aria-current={tab === t.key ? "page" : undefined}
                   className="relative whitespace-nowrap rounded-md px-3 py-2 text-left text-sm transition-colors md:w-full"
                 >
-                  {tab === t.key && (
-                    <motion.span layoutId="tab-pill" className="absolute inset-0 rounded-md bg-ink" transition={{ type: "spring", stiffness: 500, damping: 40 }} />
-                  )}
+                  {tab === t.key && <motion.span layoutId="tab-pill" className="absolute inset-0 rounded-md bg-ink" transition={{ type: "spring", stiffness: 500, damping: 40 }} />}
                   <span className={`relative ${tab === t.key ? "text-paper" : "text-muted hover:text-ink"}`}>{t.label}</span>
                 </button>
               </li>
@@ -167,22 +187,26 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
             className="min-w-0"
           >
             {tab === "profile" && (
-              <Panel title="Profile" description="Your name, headline and the short introduction at the top of the page.">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <TextField label="Name" value={data.profile.name} onChange={(name) => profile({ name })} />
-                  <TextField label="Name in Thai" hint="Shown under your name. Leave empty to hide." value={data.profile.nameLocal} onChange={(nameLocal) => profile({ nameLocal })} />
-                  <TextField className="sm:col-span-2" label="Headline" value={data.profile.headline} onChange={(headline) => profile({ headline })} />
-                  <TextField label="Location" value={data.profile.location} onChange={(location) => profile({ location })} />
-                  <TextField label="Email" type="email" value={data.profile.email} onChange={(email) => profile({ email })} />
-                  <TextField label="Phone" hint="Optional" value={data.profile.phone} onChange={(phone) => profile({ phone })} />
-                  <TextField label="Photo URL" hint="Shown in black and white next to About" value={data.profile.avatarUrl} onChange={(avatarUrl) => profile({ avatarUrl })} />
-                  <TextField className="sm:col-span-2" label="Resume PDF URL" hint="Adds a download link in Contact" value={data.profile.resumeUrl} onChange={(resumeUrl) => profile({ resumeUrl })} />
-                  <TextArea className="sm:col-span-2" rows={7} label="About" hint="Leave a blank line between paragraphs." value={data.profile.summary} onChange={(summary) => profile({ summary })} />
+              <Panel title="Profile" description="Your name, photo and introduction. Fill in English and Thai; an empty language falls back to the other one.">
+                <div className="grid gap-5">
+                  <FileField label="Profile photo" hint="Shown in black and white next to About. Square or portrait works best." aspect="aspect-[4/5]" value={data.profile.photo} onChange={(photo) => profile({ photo })} />
+                  <LocalizedField label="Name" value={data.profile.name} onChange={(name) => profile({ name })} />
+                  <LocalizedField label="Headline" value={data.profile.headline} onChange={(headline) => profile({ headline })} />
+                  <LocalizedField label="Location" value={data.profile.location} onChange={(location) => profile({ location })} />
+                  <LocalizedField label="About" hint="Leave a blank line between paragraphs." multiline rows={8} value={data.profile.summary} onChange={(summary) => profile({ summary })} />
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <TextField label="Email" type="email" value={data.profile.email} onChange={(email) => profile({ email })} />
+                    <TextField label="Phone" hint="Shown publicly in Contact. Leave empty to hide." value={data.profile.phone} onChange={(phone) => profile({ phone })} />
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <FileField label="Resume PDF (English)" accept="pdf" value={data.profile.resumeFile.en} onChange={(en) => profile({ resumeFile: { ...data.profile.resumeFile, en } })} />
+                    <FileField label="Resume PDF (Thai)" accept="pdf" value={data.profile.resumeFile.th} onChange={(th) => profile({ resumeFile: { ...data.profile.resumeFile, th } })} />
+                  </div>
+                  <div className="divide-y divide-rule border-y border-rule">
+                    <Toggle label="Available for work" hint="Shows a pulsing dot next to the status text" checked={data.profile.available} onChange={(available) => profile({ available })} />
+                  </div>
+                  <LocalizedField label="Status text" value={data.profile.availabilityText} onChange={(availabilityText) => profile({ availabilityText })} />
                 </div>
-                <div className="mt-6 divide-y divide-rule border-y border-rule">
-                  <Toggle label="Available for work" hint="Shows a pulsing dot next to the status text" checked={data.profile.available} onChange={(available) => profile({ available })} />
-                </div>
-                <TextField className="mt-4" label="Status text" value={data.profile.availabilityText} onChange={(availabilityText) => profile({ availabilityText })} />
               </Panel>
             )}
 
@@ -191,45 +215,78 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
                 <ListEditor<Experience>
                   items={data.experience}
                   onChange={(v) => patch("experience", v)}
-                  create={() => ({ role: "", company: "", location: "", start: "", end: "", description: "", highlights: [] })}
+                  create={() => ({ role: empty(), company: empty(), location: empty(), start: "", end: "", description: empty(), highlights: { en: [], th: [] } })}
                   addLabel="Add a role"
                   emptyText="No roles yet. Add your most recent one."
-                  title={(e) => [e.role, e.company].filter(Boolean).join(" at ")}
-                  subtitle={(e) => formatPeriod(e.start, e.end)}
+                  title={(e) => [label(e.role), label(e.company)].filter(Boolean).join(" at ")}
+                  subtitle={(e) => formatPeriod(e.start, e.end, "en")}
                 >
                   {(e, set) => (
                     <>
-                      <TextField label="Role" value={e.role} onChange={(role) => set({ role })} />
-                      <TextField label="Company" value={e.company} onChange={(company) => set({ company })} />
+                      <LocalizedField className="sm:col-span-2" label="Role" value={e.role} onChange={(role) => set({ role })} />
+                      <LocalizedField className="sm:col-span-2" label="Company" value={e.company} onChange={(company) => set({ company })} />
                       <TextField label="Start" placeholder="2023-01" hint="YYYY-MM or YYYY" value={e.start} onChange={(start) => set({ start })} />
                       <TextField label="End" placeholder="Empty = present" value={e.end} onChange={(end) => set({ end })} />
-                      <TextField className="sm:col-span-2" label="Location" value={e.location} onChange={(location) => set({ location })} />
-                      <TextArea className="sm:col-span-2" rows={3} label="Description" value={e.description} onChange={(description) => set({ description })} />
-                      <ListField className="sm:col-span-2" separator={"\n"} rows={4} label="Highlights" hint="One per line" value={e.highlights} onChange={(highlights) => set({ highlights })} />
+                      <LocalizedField className="sm:col-span-2" label="Location" hint="Optional" value={e.location} onChange={(location) => set({ location })} />
+                      <LocalizedField className="sm:col-span-2" label="Description" hint="Optional short intro above the highlights" multiline rows={3} value={e.description} onChange={(description) => set({ description })} />
+                      <LocalizedLines className="sm:col-span-2" label="Highlights" hint="One per line" rows={6} value={e.highlights} onChange={(highlights) => set({ highlights })} />
                     </>
                   )}
                 </ListEditor>
               </Panel>
             )}
 
-            {tab === "projects" && (
-              <Panel title="Projects" description="Work you want people to look at. Rows link out when a URL is set.">
-                <ListEditor<Project>
-                  items={data.projects}
-                  onChange={(v) => patch("projects", v)}
-                  create={() => ({ name: "", year: "", url: "", description: "", tags: [] })}
-                  addLabel="Add a project"
-                  emptyText="No projects yet."
-                  title={(p) => p.name}
-                  subtitle={(p) => [p.year, p.tags.join(", ")].filter(Boolean).join("  ")}
+            {tab === "apps" && (
+              <Panel title="Apps" description="Apps you've built. Visitors see a card for each; selecting it opens the screenshots.">
+                <ListEditor<App>
+                  items={data.apps}
+                  onChange={(v) => patch("apps", v)}
+                  create={() => ({ name: "", year: "", platform: "", tagline: empty(), description: empty(), tags: [], url: "", repoUrl: "", icon: "", screenshots: [] })}
+                  addLabel="Add an app"
+                  emptyText="No apps yet."
+                  title={(a) => a.name}
+                  subtitle={(a) => [a.platform, a.year, a.screenshots.length ? `${a.screenshots.length} screens` : ""].filter(Boolean).join(", ")}
                 >
-                  {(p, set) => (
+                  {(a, set) => (
                     <>
-                      <TextField label="Name" value={p.name} onChange={(name) => set({ name })} />
-                      <TextField label="Year" value={p.year} onChange={(year) => set({ year })} />
-                      <TextField className="sm:col-span-2" label="URL" value={p.url} onChange={(url) => set({ url })} />
-                      <TextArea className="sm:col-span-2" rows={3} label="Description" value={p.description} onChange={(description) => set({ description })} />
-                      <ListField className="sm:col-span-2" separator="," label="Tags" hint="Separate with commas" value={p.tags} onChange={(tags) => set({ tags })} />
+                      <TextField label="Name" value={a.name} onChange={(name) => set({ name })} />
+                      <div className="grid grid-cols-2 gap-4">
+                        <TextField label="Platform" placeholder="iOS, Android, Web" value={a.platform} onChange={(platform) => set({ platform })} />
+                        <TextField label="Year" value={a.year} onChange={(year) => set({ year })} />
+                      </div>
+                      <LocalizedField className="sm:col-span-2" label="One-line summary" value={a.tagline} onChange={(tagline) => set({ tagline })} />
+                      <LocalizedField className="sm:col-span-2" label="Description" multiline rows={4} value={a.description} onChange={(description) => set({ description })} />
+                      <TagsField className="sm:col-span-2" label="Built with" hint="Separate with commas" value={a.tags} onChange={(tags) => set({ tags })} />
+                      <TextField label="App link" placeholder="App Store, Play Store or website" value={a.url} onChange={(url) => set({ url })} />
+                      <TextField label="Source code link" placeholder="https://github.com/…" value={a.repoUrl} onChange={(repoUrl) => set({ repoUrl })} />
+                      <FileField className="sm:col-span-2" label="App icon" hint="Square image" aspect="aspect-square" value={a.icon} onChange={(icon) => set({ icon })} />
+                      <ImagesField className="sm:col-span-2" label="Screenshots / mockups" hint="Add several at once. Drag files here, or use the arrows to reorder. The first one is the card image." value={a.screenshots} onChange={(screenshots) => set({ screenshots })} />
+                    </>
+                  )}
+                </ListEditor>
+              </Panel>
+            )}
+
+            {tab === "gallery" && (
+              <Panel title="Certificates & activities" description="Certificates, training, competitions and event photos. Upload a scan or photo, and optionally the original PDF.">
+                <ListEditor<GalleryItem>
+                  items={data.gallery}
+                  onChange={(v) => patch("gallery", v)}
+                  create={() => ({ kind: "certificate", title: empty(), issuer: empty(), date: "", image: "", file: "", url: "" })}
+                  addLabel="Add a certificate or activity"
+                  emptyText="Nothing here yet."
+                  title={(g) => label(g.title)}
+                  subtitle={(g) => [kindLabels[g.kind], g.date, g.image ? "has image" : "no image"].filter(Boolean).join(", ")}
+                >
+                  {(g, set) => (
+                    <>
+                      <SelectField<GalleryKind> label="Type" value={g.kind} onChange={(kind) => set({ kind })} options={galleryKinds.map((k) => ({ value: k, label: kindLabels[k] }))} />
+                      <TextField label="Date" placeholder="2024-05" hint="YYYY-MM or YYYY" value={g.date} onChange={(date) => set({ date })} />
+                      <LocalizedField className="sm:col-span-2" label="Title" value={g.title} onChange={(title) => set({ title })} />
+                      <LocalizedField className="sm:col-span-2" label="Issued by / organizer" value={g.issuer} onChange={(issuer) => set({ issuer })} />
+                      <FileField label="Image" hint="Certificate scan or event photo" value={g.image} onChange={(image) => set({ image })} />
+                      <FileField label="Original file" hint="Optional PDF or full-size image" accept="image+pdf" value={g.file} onChange={(file) => set({ file })} />
+                      <TextField className="sm:col-span-2" label="Verification link" hint="Optional, e.g. Credly" value={g.url} onChange={(url) => set({ url })} />
                     </>
                   )}
                 </ListEditor>
@@ -237,20 +294,40 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
             )}
 
             {tab === "skills" && (
-              <Panel title="Skills" description="Group related skills together.">
+              <Panel title="Skills & languages" description="Group related skills together. Skill names are the same in both languages.">
                 <ListEditor<SkillGroup>
                   items={data.skills}
                   onChange={(v) => patch("skills", v)}
-                  create={() => ({ group: "", items: [] })}
-                  addLabel="Add a group"
+                  create={() => ({ group: empty(), items: [] })}
+                  addLabel="Add a skill group"
                   emptyText="No skill groups yet."
-                  title={(g) => g.group}
+                  title={(g) => label(g.group)}
                   subtitle={(g) => g.items.join(", ")}
                 >
                   {(g, set) => (
                     <>
-                      <TextField label="Group" value={g.group} onChange={(group) => set({ group })} />
-                      <ListField separator="," label="Skills" hint="Separate with commas" value={g.items} onChange={(items) => set({ items })} />
+                      <LocalizedField className="sm:col-span-2" label="Group" value={g.group} onChange={(group) => set({ group })} />
+                      <TagsField className="sm:col-span-2" label="Skills" hint="Separate with commas" value={g.items} onChange={(items) => set({ items })} />
+                    </>
+                  )}
+                </ListEditor>
+
+                <h2 className="mb-4 mt-12 font-display text-2xl font-semibold tracking-tight" style={{ fontVariationSettings: '"wdth" 80' }}>
+                  Languages you speak
+                </h2>
+                <ListEditor<SpokenLanguage>
+                  items={data.spokenLanguages}
+                  onChange={(v) => patch("spokenLanguages", v)}
+                  create={() => ({ name: empty(), level: empty() })}
+                  addLabel="Add a language"
+                  emptyText="No languages yet."
+                  title={(l) => label(l.name)}
+                  subtitle={(l) => label(l.level)}
+                >
+                  {(l, set) => (
+                    <>
+                      <LocalizedField className="sm:col-span-2" label="Language" value={l.name} onChange={(name) => set({ name })} />
+                      <LocalizedField className="sm:col-span-2" label="Level" value={l.level} onChange={(level) => set({ level })} />
                     </>
                   )}
                 </ListEditor>
@@ -258,23 +335,23 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
             )}
 
             {tab === "education" && (
-              <Panel title="Education" description="Degrees, courses and certificates.">
+              <Panel title="Education" description="Degrees and courses.">
                 <ListEditor<Education>
                   items={data.education}
                   onChange={(v) => patch("education", v)}
-                  create={() => ({ school: "", degree: "", start: "", end: "", note: "" })}
+                  create={() => ({ school: empty(), degree: empty(), start: "", end: "", note: empty() })}
                   addLabel="Add education"
                   emptyText="Nothing here yet."
-                  title={(e) => e.school}
-                  subtitle={(e) => [e.degree, formatPeriod(e.start, e.end)].filter(Boolean).join("  ")}
+                  title={(e) => label(e.school)}
+                  subtitle={(e) => [label(e.degree), formatPeriod(e.start, e.end, "en")].filter(Boolean).join(", ")}
                 >
                   {(e, set) => (
                     <>
-                      <TextField label="School" value={e.school} onChange={(school) => set({ school })} />
-                      <TextField label="Degree" value={e.degree} onChange={(degree) => set({ degree })} />
+                      <LocalizedField className="sm:col-span-2" label="School" value={e.school} onChange={(school) => set({ school })} />
+                      <LocalizedField className="sm:col-span-2" label="Degree or course" value={e.degree} onChange={(degree) => set({ degree })} />
                       <TextField label="Start" placeholder="2014" value={e.start} onChange={(start) => set({ start })} />
                       <TextField label="End" placeholder="2018" value={e.end} onChange={(end) => set({ end })} />
-                      <TextArea className="sm:col-span-2" rows={2} label="Note" value={e.note} onChange={(note) => set({ note })} />
+                      <LocalizedField className="sm:col-span-2" label="Note" multiline rows={2} value={e.note} onChange={(note) => set({ note })} />
                     </>
                   )}
                 </ListEditor>
@@ -282,7 +359,7 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
             )}
 
             {tab === "links" && (
-              <Panel title="Links" description="Profiles shown in the header area and in Contact.">
+              <Panel title="Links" description="Profiles shown under your name and in Contact. Labels are the same in both languages.">
                 <ListEditor<Link>
                   items={data.links}
                   onChange={(v) => patch("links", v)}
@@ -294,7 +371,7 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
                 >
                   {(l, set) => (
                     <>
-                      <TextField label="Label" placeholder="GitHub" value={l.label} onChange={(label) => set({ label })} />
+                      <TextField label="Label" placeholder="LinkedIn" value={l.label} onChange={(v) => set({ label: v })} />
                       <TextField label="URL" placeholder="https://" value={l.url} onChange={(url) => set({ url })} />
                     </>
                   )}
@@ -335,7 +412,7 @@ function Panel({ title, description, children }: { title: string; description: s
       <h1 className="font-display text-3xl font-semibold tracking-tight" style={{ fontVariationSettings: '"wdth" 80' }}>
         {title}
       </h1>
-      <p className="mb-8 mt-1 text-muted">{description}</p>
+      <p className="mb-8 mt-1 max-w-[70ch] text-muted">{description}</p>
       {children}
     </section>
   );
@@ -368,7 +445,7 @@ function Backup({ data, onImport }: { data: Resume; onImport: (d: Resume) => voi
   };
 
   return (
-    <Panel title="Backup" description="Download everything as one JSON file, or load a file to replace what's in the editor.">
+    <Panel title="Backup" description="Download all text as one JSON file, or load a file to replace what's in the editor. Uploaded images stay in storage and are referenced by link.">
       <div className="flex flex-wrap gap-3">
         <button onClick={download} className="rounded-md border border-ink px-4 py-2 text-sm font-medium">
           Download JSON

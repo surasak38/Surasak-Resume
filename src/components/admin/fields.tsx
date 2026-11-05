@@ -1,19 +1,25 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import type { Localized, LocalizedList } from "@/lib/i18n";
+import { uploadFile } from "./upload";
 
 const inputCls =
-  "mt-1.5 block w-full rounded-md border border-rule bg-paper px-3 py-2 text-[15px] outline-none transition-colors placeholder:text-muted/60 focus:border-ink";
+  "block w-full rounded-md border border-rule bg-paper px-3 py-2 text-[15px] outline-none transition-colors placeholder:text-muted/60 focus:border-ink";
 
 type Base = { label: string; hint?: string; className?: string };
 
-function Shell({ label, hint, className, id, children }: Base & { id: string; children: React.ReactNode }) {
+function Shell({ label, hint, className, id, children }: Base & { id?: string; children: React.ReactNode }) {
   return (
     <div className={className}>
-      <label htmlFor={id} className="text-sm font-medium">
-        {label}
-      </label>
-      {children}
+      {id ? (
+        <label htmlFor={id} className="text-sm font-medium">
+          {label}
+        </label>
+      ) : (
+        <p className="text-sm font-medium">{label}</p>
+      )}
+      <div className="mt-1.5">{children}</div>
       {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
     </div>
   );
@@ -34,43 +40,123 @@ export function TextField({
   );
 }
 
-export function TextArea({
+function LangTag({ lang }: { lang: "en" | "th" }) {
+  return (
+    <span aria-hidden className="pointer-events-none absolute left-2 top-2 rounded bg-wash px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-muted">
+      {lang.toUpperCase()}
+    </span>
+  );
+}
+
+/** One field, two languages. */
+export function LocalizedField({
   value,
   onChange,
+  multiline = false,
   rows = 4,
-  placeholder,
   ...base
-}: Base & { value: string; onChange: (v: string) => void; rows?: number; placeholder?: string }) {
+}: Base & { value: Localized; onChange: (v: Localized) => void; multiline?: boolean; rows?: number }) {
   const id = useId();
   return (
-    <Shell id={id} {...base}>
-      <textarea id={id} rows={rows} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className={`${inputCls} resize-y leading-relaxed`} />
+    <Shell {...base}>
+      <div className={`grid gap-2 ${multiline ? "md:grid-cols-2" : ""}`}>
+        {(["en", "th"] as const).map((lang) => (
+          <div key={lang} className="relative">
+            <LangTag lang={lang} />
+            {multiline ? (
+              <textarea
+                id={`${id}-${lang}`}
+                aria-label={`${base.label} (${lang === "en" ? "English" : "Thai"})`}
+                lang={lang}
+                rows={rows}
+                value={value[lang]}
+                onChange={(e) => onChange({ ...value, [lang]: e.target.value })}
+                className={`${inputCls} resize-y pl-11 leading-relaxed`}
+              />
+            ) : (
+              <input
+                id={`${id}-${lang}`}
+                aria-label={`${base.label} (${lang === "en" ? "English" : "Thai"})`}
+                lang={lang}
+                value={value[lang]}
+                onChange={(e) => onChange({ ...value, [lang]: e.target.value })}
+                className={`${inputCls} pl-11`}
+              />
+            )}
+          </div>
+        ))}
+      </div>
     </Shell>
   );
 }
 
-/** Edits a string[] as raw text; `separator` is "\n" (one per line) or "," (comma list). */
-export function ListField({
-  value,
-  onChange,
-  separator,
-  rows = 3,
-  placeholder,
-  ...base
-}: Base & { value: string[]; onChange: (v: string[]) => void; separator: "\n" | ","; rows?: number; placeholder?: string }) {
+function linesOf(text: string) {
+  return text.split("\n").map((s) => s.trim()).filter(Boolean);
+}
+
+/** A list of lines per language, edited as one line per item. */
+export function LocalizedLines({ value, onChange, rows = 5, ...base }: Base & { value: LocalizedList; onChange: (v: LocalizedList) => void; rows?: number }) {
+  const [raw, setRaw] = useState(() => ({ en: value.en.join("\n"), th: value.th.join("\n") }));
+  return (
+    <Shell {...base}>
+      <div className="grid gap-2 md:grid-cols-2">
+        {(["en", "th"] as const).map((lang) => (
+          <div key={lang} className="relative">
+            <LangTag lang={lang} />
+            <textarea
+              aria-label={`${base.label} (${lang === "en" ? "English" : "Thai"})`}
+              lang={lang}
+              rows={rows}
+              value={raw[lang]}
+              onChange={(e) => {
+                setRaw({ ...raw, [lang]: e.target.value });
+                onChange({ ...value, [lang]: linesOf(e.target.value) });
+              }}
+              className={`${inputCls} resize-y pl-11 leading-relaxed`}
+            />
+          </div>
+        ))}
+      </div>
+    </Shell>
+  );
+}
+
+/** Edits a string[] as comma-separated text. */
+export function TagsField({ value, onChange, placeholder, ...base }: Base & { value: string[]; onChange: (v: string[]) => void; placeholder?: string }) {
   const id = useId();
-  const [raw, setRaw] = useState(() => value.join(separator === "," ? ", " : "\n"));
-  const update = (text: string) => {
-    setRaw(text);
-    onChange(text.split(separator).map((s) => s.trim()).filter(Boolean));
-  };
+  const [raw, setRaw] = useState(() => value.join(", "));
   return (
     <Shell id={id} {...base}>
-      {separator === "," ? (
-        <input id={id} value={raw} placeholder={placeholder} onChange={(e) => update(e.target.value)} className={inputCls} />
-      ) : (
-        <textarea id={id} rows={rows} value={raw} placeholder={placeholder} onChange={(e) => update(e.target.value)} className={`${inputCls} resize-y leading-relaxed`} />
-      )}
+      <input
+        id={id}
+        value={raw}
+        placeholder={placeholder}
+        onChange={(e) => {
+          setRaw(e.target.value);
+          onChange(e.target.value.split(",").map((s) => s.trim()).filter(Boolean));
+        }}
+        className={inputCls}
+      />
+    </Shell>
+  );
+}
+
+export function SelectField<T extends string>({
+  value,
+  onChange,
+  options,
+  ...base
+}: Base & { value: T; onChange: (v: T) => void; options: { value: T; label: string }[] }) {
+  const id = useId();
+  return (
+    <Shell id={id} {...base}>
+      <select id={id} value={value} onChange={(e) => onChange(e.target.value as T)} className={inputCls}>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
     </Shell>
   );
 }
@@ -88,5 +174,174 @@ export function Toggle({ label, hint, checked, onChange }: { label: string; hint
         className="relative mt-0.5 h-6 w-11 shrink-0 rounded-full border border-ink transition-colors peer-checked:bg-ink peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink after:absolute after:left-0.5 after:top-0.5 after:size-[18px] after:rounded-full after:bg-ink after:transition-transform after:duration-300 after:ease-out-quint peer-checked:after:translate-x-5 peer-checked:after:bg-paper"
       />
     </label>
+  );
+}
+
+function useUploader(onDone: (urls: string[]) => void) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const run = async (files: File[]) => {
+    if (!files.length) return;
+    setBusy(true);
+    setError("");
+    const urls: string[] = [];
+    try {
+      for (const f of files) urls.push(await uploadFile(f));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      if (urls.length) onDone(urls);
+      setBusy(false);
+    }
+  };
+  return { busy, error, run };
+}
+
+const btn = "rounded-md border border-rule px-3 py-1.5 text-sm transition-colors hover:border-ink disabled:opacity-50";
+
+/** Single file: a photo, certificate scan or PDF. */
+export function FileField({
+  value,
+  onChange,
+  accept = "image",
+  aspect = "aspect-[4/3]",
+  ...base
+}: Base & { value: string; onChange: (v: string) => void; accept?: "image" | "pdf" | "image+pdf"; aspect?: string }) {
+  const input = useRef<HTMLInputElement>(null);
+  const { busy, error, run } = useUploader((urls) => onChange(urls[0]));
+  const isPdf = value.endsWith(".pdf");
+  const acceptAttr = { image: "image/jpeg,image/png,image/webp,image/gif", pdf: "application/pdf", "image+pdf": "image/jpeg,image/png,image/webp,image/gif,application/pdf" }[accept];
+
+  return (
+    <Shell {...base}>
+      <div
+        className="flex items-center gap-4"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          run(Array.from(e.dataTransfer.files).slice(0, 1));
+        }}
+      >
+        <div className={`relative grid w-28 shrink-0 place-items-center overflow-hidden rounded-md border border-dashed border-rule bg-wash ${accept === "pdf" ? "aspect-[3/4]" : aspect}`}>
+          {value && !isPdf ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={value} alt="" className="size-full object-cover" />
+          ) : value && isPdf ? (
+            <span className="text-xs font-semibold">PDF</span>
+          ) : (
+            <span className="px-2 text-center text-[11px] text-muted">{busy ? "Uploading…" : "Drop a file"}</span>
+          )}
+          {busy && value && <span className="absolute inset-0 grid place-items-center bg-paper/70 text-xs">Uploading…</span>}
+        </div>
+        <div className="flex flex-col items-start gap-2">
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className={btn} disabled={busy} onClick={() => input.current?.click()}>
+              {value ? "Replace" : "Upload"}
+            </button>
+            {value && (
+              <>
+                <a href={value} target="_blank" rel="noreferrer" className={btn}>
+                  Open
+                </a>
+                <button type="button" className={btn} disabled={busy} onClick={() => onChange("")}>
+                  Remove
+                </button>
+              </>
+            )}
+          </div>
+          {error && (
+            <p role="alert" className="text-xs">
+              {error}
+            </p>
+          )}
+        </div>
+        <input
+          ref={input}
+          type="file"
+          accept={acceptAttr}
+          className="sr-only"
+          tabIndex={-1}
+          onChange={(e) => {
+            run(Array.from(e.target.files ?? []).slice(0, 1));
+            e.target.value = "";
+          }}
+        />
+      </div>
+    </Shell>
+  );
+}
+
+/** Ordered list of images, e.g. app screenshots. */
+export function ImagesField({ value, onChange, ...base }: Base & { value: string[]; onChange: (v: string[]) => void }) {
+  const input = useRef<HTMLInputElement>(null);
+  // Uploads finish later; append to whatever the list is by then.
+  const latest = useRef(value);
+  useEffect(() => {
+    latest.current = value;
+  });
+  const { busy, error, run } = useUploader((urls) => onChange([...latest.current, ...urls]));
+  const move = (i: number, dir: -1 | 1) => {
+    const next = [...value];
+    [next[i], next[i + dir]] = [next[i + dir], next[i]];
+    onChange(next);
+  };
+
+  return (
+    <Shell {...base}>
+      <ol
+        className="flex flex-wrap gap-3"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          run(Array.from(e.dataTransfer.files));
+        }}
+      >
+        {value.map((src, i) => (
+          <li key={src} className="group relative h-36 w-20 overflow-hidden rounded-md border border-rule bg-wash">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={src} alt={`Screenshot ${i + 1}`} className="size-full object-cover object-top" />
+            <span className="tabular absolute left-1 top-1 rounded bg-paper/90 px-1 text-[10px]">{i + 1}</span>
+            <div className="absolute inset-x-0 bottom-0 flex justify-between bg-paper/90 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+              <button type="button" aria-label="Move earlier" disabled={i === 0} onClick={() => move(i, -1)} className="px-1.5 py-1 text-xs disabled:opacity-30">
+                ←
+              </button>
+              <button type="button" aria-label="Remove" onClick={() => onChange(value.filter((_, j) => j !== i))} className="px-1.5 py-1 text-xs">
+                ✕
+              </button>
+              <button type="button" aria-label="Move later" disabled={i === value.length - 1} onClick={() => move(i, 1)} className="px-1.5 py-1 text-xs disabled:opacity-30">
+                →
+              </button>
+            </div>
+          </li>
+        ))}
+        <li>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => input.current?.click()}
+            className="grid h-36 w-20 place-items-center rounded-md border border-dashed border-rule px-1 text-center text-xs text-muted transition-colors hover:border-ink hover:text-ink"
+          >
+            {busy ? "Uploading…" : "+ Add screens"}
+          </button>
+        </li>
+      </ol>
+      {error && (
+        <p role="alert" className="mt-2 text-xs">
+          {error}
+        </p>
+      )}
+      <input
+        ref={input}
+        type="file"
+        multiple
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        className="sr-only"
+        tabIndex={-1}
+        onChange={(e) => {
+          run(Array.from(e.target.files ?? []));
+          e.target.value = "";
+        }}
+      />
+    </Shell>
   );
 }
