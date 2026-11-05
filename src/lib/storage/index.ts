@@ -1,6 +1,7 @@
 import "server-only";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { get as blobGet, put as blobPut } from "@vercel/blob";
 
 /**
  * The whole resume is one JSON document, so storage only needs get/set.
@@ -8,6 +9,8 @@ import path from "node:path";
  * Drivers:
  *  - "redis": Upstash Redis over its REST API (Vercel Marketplace → Upstash).
  *             Picked automatically when KV_REST_API_URL / UPSTASH_REDIS_REST_URL is set.
+ *  - "blob":  a private Vercel Blob store. Picked when BLOB_READ_WRITE_TOKEN is set
+ *             (Vercel → Storage → Blob, connected to the project).
  *  - "file":  data/resume.json on disk. Good for local dev and self-hosting
  *             (Docker / VPS). Not usable on Vercel, whose filesystem is read-only.
  */
@@ -43,6 +46,31 @@ function redisStorage(url: string, token: string): Storage {
   };
 }
 
+function blobStorage(): Storage {
+  const pathname = `${KEY.replace(/:/g, "-")}.json`;
+  return {
+    name: "blob",
+    async get() {
+      try {
+        const res = await blobGet(pathname, { access: "private", useCache: false });
+        if (!res || res.statusCode !== 200) return null;
+        return await new Response(res.stream).text();
+      } catch (err) {
+        if ((err as Error).name === "BlobNotFoundError") return null;
+        throw err;
+      }
+    },
+    async set(value) {
+      await blobPut(pathname, value, {
+        access: "private",
+        contentType: "application/json",
+        addRandomSuffix: false,
+        allowOverwrite: true,
+      });
+    },
+  };
+}
+
 function fileStorage(file: string): Storage {
   return {
     name: "file",
@@ -66,11 +94,14 @@ function fileStorage(file: string): Storage {
 export function getStorage(): Storage {
   const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-  const driver = process.env.RESUME_STORAGE || (url && token ? "redis" : "file");
+  const driver =
+    process.env.RESUME_STORAGE ||
+    (url && token ? "redis" : process.env.BLOB_READ_WRITE_TOKEN ? "blob" : "file");
 
   if (driver === "redis") {
     if (!url || !token) throw new Error("RESUME_STORAGE=redis needs KV_REST_API_URL and KV_REST_API_TOKEN");
     return redisStorage(url, token);
   }
+  if (driver === "blob") return blobStorage();
   return fileStorage(process.env.RESUME_FILE || path.join(process.cwd(), "data", "resume.json"));
 }

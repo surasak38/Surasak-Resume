@@ -89,7 +89,7 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 md:px-8">
           <span className="font-display text-lg font-bold tracking-tight">Resume admin</span>
           <span className="hidden rounded-full border border-rule px-2 py-0.5 text-xs text-muted sm:inline" title="Where your data is stored">
-            {storage === "redis" ? "Redis" : "Local file"}
+            {{ redis: "Redis", blob: "Vercel Blob", file: "Local file" }[storage] ?? storage}
           </span>
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
             <AnimatePresence mode="wait">

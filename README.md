@@ -22,9 +22,10 @@ The resume is a single JSON document (validated by `src/lib/schema.ts`), so stor
 | Driver | When it's used | Good for |
 | --- | --- | --- |
 | `file` | default, no Redis env vars | local dev, Docker / VPS with a persistent disk |
-| `redis` (Upstash REST) | `KV_REST_API_URL` + `KV_REST_API_TOKEN` are set | Vercel (its filesystem is read-only) |
+| `blob` (private Vercel Blob) | `BLOB_READ_WRITE_TOKEN` is set | Vercel, zero setup beyond creating a Blob store |
+| `redis` (Upstash REST) | `KV_REST_API_URL` + `KV_REST_API_TOKEN` are set (takes priority) | Vercel, if you prefer Redis |
 
-**Recommended for production: Vercel + Upstash Redis.** In the Vercel project go to *Storage → Create → Upstash (Redis)* and connect it; the env vars are added automatically. The free tier is far more than a resume needs, and the public page is cached by Next.js (`'use cache'` + `cacheTag`), so Redis is only read after you publish.
+**Production uses Vercel Blob**: a private Blob store connected to the project holds `resume-v1.json`. Upstash Redis works too (*Storage → Marketplace → Upstash*). Either way the public page is cached by Next.js (`'use cache'` + `cacheTag`), so storage is only read again after you publish.
 
 Other options if you outgrow this:
 
@@ -37,5 +38,5 @@ Other options if you outgrow this:
 
 1. Import this repo in Vercel.
 2. Add env vars: `ADMIN_PASSWORD`, `AUTH_SECRET` (`openssl rand -base64 32`).
-3. Connect Upstash Redis from *Storage*.
+3. Create a Blob store from *Storage* and connect it to the project (adds `BLOB_READ_WRITE_TOKEN`).
 4. Deploy, open `/admin`, edit, and press Publish.

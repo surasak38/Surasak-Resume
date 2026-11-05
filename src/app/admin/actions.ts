@@ -45,7 +45,7 @@ export async function saveResume(input: unknown): Promise<SaveResult> {
   } catch (err) {
     const code = (err as NodeJS.ErrnoException).code;
     if (code === "EROFS" || code === "EACCES") {
-      return { ok: false, error: "This server can't write files. Connect Redis (KV_REST_API_URL / KV_REST_API_TOKEN) to save." };
+      return { ok: false, error: "This server can't write files. Connect Vercel Blob or Redis to save." };
     }
     return { ok: false, error: err instanceof Error ? err.message : "Saving failed." };
   }

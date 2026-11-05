@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@vercel/blob": "^2.8.2",
     "jose": "^6.2.15",
     "motion": "^14.9.1",
     "next": "16.4.5",
