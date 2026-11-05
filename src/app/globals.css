@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+  --paper: #ffffff;
+  --ink: #000000;
+  --muted: #6b6b6b;
+  --rule: #e2e2e2;
+  --wash: #f4f4f4;
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --paper: #000000;
+  --ink: #ffffff;
+  --muted: #8f8f8f;
+  --rule: #262626;
+  --wash: #121212;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-rule: var(--rule);
+  --color-wash: var(--wash);
+  --font-sans: var(--font-body), var(--font-thai), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display-latin), var(--font-thai), ui-sans-serif, sans-serif;
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html {
+  background: var(--paper);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "tnum" 0;
+}
+
+::selection {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Theme switch: the new theme grows out of the toggle as a circle. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
