@@ -23,13 +23,20 @@ export const defaultResume: Resume = {
     resumeFile: { en: "", th: "" },
     available: true,
     availabilityText: { en: "Open to new opportunities", th: "เปิดรับโอกาสงานใหม่" },
+    hobbies: {
+      en: ["Learning languages", "Building apps", "Football", "Movies", "Gaming"],
+      th: ["เรียนภาษา", "เขียนแอป", "ฟุตบอล", "ดูหนัง", "เล่นเกม"],
+    },
   },
   spokenLanguages: [
     { id: "lang-th", name: { en: "Thai", th: "ไทย" }, level: { en: "Native", th: "ภาษาแม่" } },
     {
       id: "lang-en",
       name: { en: "English", th: "อังกฤษ" },
-      level: { en: "Professional, used daily in an English-only workplace", th: "ใช้ทำงานประจำวันในบริษัทที่สื่อสารภาษาอังกฤษทั้งหมด" },
+      level: {
+        en: "Professional, used daily in an English-only workplace (IELTS 5.0)",
+        th: "ใช้ทำงานประจำวันในบริษัทที่สื่อสารภาษาอังกฤษทั้งหมด (IELTS 5.0)",
+      },
     },
   ],
   links: [{ id: "link-github", label: "GitHub", url: "https://github.com/surasak38" }],
@@ -248,6 +255,14 @@ export const defaultResume: Resume = {
       degree: { en: "General English", th: "General English" },
       start: "2019",
       end: "2021",
+      note: { en: "Upper Intermediate level, IELTS 5.0", th: "ระดับ Upper Intermediate, IELTS 5.0" },
+    },
+    {
+      id: "edu-sarakham",
+      school: { en: "Sarakham Pittayakhom School", th: "โรงเรียนสารคามพิทยาคม" },
+      degree: { en: "Lower and upper secondary education", th: "มัธยมศึกษาตอนต้น-ปลาย" },
+      start: "2009",
+      end: "2014",
       note: { en: "", th: "" },
     },
   ],

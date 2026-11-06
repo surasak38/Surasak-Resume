@@ -206,6 +206,7 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
                     <Toggle label="Available for work" hint="Shows a pulsing dot next to the status text" checked={data.profile.available} onChange={(available) => profile({ available })} />
                   </div>
                   <LocalizedField label="Status text" value={data.profile.availabilityText} onChange={(availabilityText) => profile({ availabilityText })} />
+                  <LocalizedLines label="Hobbies" hint="One per line. Shown at the end of About." rows={5} value={data.profile.hobbies} onChange={(hobbies) => profile({ hobbies })} />
                 </div>
               </Panel>
             )}

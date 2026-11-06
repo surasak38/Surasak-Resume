@@ -27,6 +27,7 @@ export const profileSchema = z.object({
   resumeFile: z.object({ en: media.default(""), th: media.default("") }).default({ en: "", th: "" }),
   available: z.boolean().default(false),
   availabilityText: L,
+  hobbies: LList,
 });
 
 export const spokenLanguageSchema = z.object({ id, name: L, level: L });

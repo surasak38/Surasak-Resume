@@ -38,9 +38,10 @@ export default async function Home({ params }: PageProps<"/[lang]">) {
   const altName = profile.name[other] && profile.name[other] !== name ? profile.name[other] : "";
   const summary = tr(profile.summary, lang);
   const resumeFile = profile.resumeFile[lang] || profile.resumeFile[other];
+  const hobbies = trList(profile.hobbies, lang);
 
   const show = {
-    about: sections.about && Boolean(summary || profile.photo),
+    about: sections.about && Boolean(summary || profile.photo || hobbies.length),
     experience: sections.experience && data.experience.length > 0,
     apps: sections.apps && data.apps.length > 0,
     gallery: sections.gallery && data.gallery.length > 0,
@@ -114,6 +115,12 @@ export default async function Home({ params }: PageProps<"/[lang]">) {
                 {summary.split(/\n{2,}/).map((p, i) => (
                   <p key={i}>{p}</p>
                 ))}
+                {hobbies.length > 0 && (
+                  <p className="!mt-10 border-t border-rule pt-5 text-base">
+                    <span className="mr-3 text-muted">{t.hobbies}</span>
+                    {hobbies.join(lang === "th" ? " / " : ", ")}
+                  </p>
+                )}
               </div>
               {profile.photo && (
                 // eslint-disable-next-line @next/next/no-img-element
