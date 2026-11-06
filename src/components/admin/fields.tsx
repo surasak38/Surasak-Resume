@@ -277,7 +277,13 @@ type Screen = { src: string; caption: Localized };
  * App screenshots: upload several at once, reorder by dragging (or with the arrow buttons on touch screens),
  * and give each one an optional caption in both languages.
  */
-export function ScreensField({ value, onChange, ...base }: Base & { value: Screen[]; onChange: (v: Screen[]) => void }) {
+export function ScreensField({
+  value,
+  onChange,
+  noun = "screen",
+  firstNote = "Card image",
+  ...base
+}: Base & { value: Screen[]; onChange: (v: Screen[]) => void; noun?: string; firstNote?: string }) {
   const input = useRef<HTMLInputElement>(null);
   // Uploads finish later; append to whatever the list is by then.
   const latest = useRef(value);
@@ -345,14 +351,14 @@ export function ScreensField({ value, onChange, ...base }: Base & { value: Scree
                 </div>
                 <a href={shot.src} target="_blank" rel="noreferrer" className="block h-28 w-20 shrink-0 overflow-hidden rounded border border-rule bg-wash" title="Open full size">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={shot.src} alt={`Screen ${i + 1}`} draggable={false} className="size-full object-cover object-top" />
+                  <img src={shot.src} alt={`${noun} ${i + 1}`} draggable={false} className="size-full object-cover object-top" />
                 </a>
                 <div className="grid min-w-0 flex-1 content-start gap-2">
                   {(["en", "th"] as const).map((lang) => (
                     <div key={lang} className="relative">
                       <LangTag lang={lang} />
                       <input
-                        aria-label={`Caption for screen ${i + 1} (${lang === "en" ? "English" : "Thai"})`}
+                        aria-label={`Caption for ${noun} ${i + 1} (${lang === "en" ? "English" : "Thai"})`}
                         lang={lang}
                         placeholder="Caption (optional)"
                         value={shot.caption[lang]}
@@ -361,7 +367,7 @@ export function ScreensField({ value, onChange, ...base }: Base & { value: Scree
                       />
                     </div>
                   ))}
-                  {i === 0 && <p className="text-xs text-muted">Card image</p>}
+                  {i === 0 && firstNote && <p className="text-xs text-muted">{firstNote}</p>}
                 </div>
                 <div className="flex flex-col gap-1">
                   <button type="button" aria-label="Move up" disabled={i === 0} onClick={() => moveTo(i, i - 1)} className={`${btn} px-2`}>
@@ -384,7 +390,7 @@ export function ScreensField({ value, onChange, ...base }: Base & { value: Scree
           onClick={() => input.current?.click()}
           className={`w-full rounded-md py-4 text-sm text-muted transition-colors hover:text-ink ${value.length ? "mt-2" : ""}`}
         >
-          {busy ? "Uploading…" : "+ Add screens (or drop images here)"}
+          {busy ? "Uploading…" : `+ Add ${noun}s (or drop images here)`}
         </button>
       </div>
       {error && (

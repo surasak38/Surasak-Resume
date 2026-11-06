@@ -94,7 +94,9 @@ export const educationSchema = z.object({
   note: L,
 });
 
-export const sectionKeys = ["about", "experience", "apps", "gallery", "skills", "education", "contact"] as const;
+export const photoSchema = z.object({ src: media.refine(Boolean, "Photo is missing its image"), caption: L });
+
+export const sectionKeys = ["about", "experience", "apps", "gallery", "photos", "skills", "education", "contact"] as const;
 export type SectionKey = (typeof sectionKeys)[number];
 
 export const resumeSchema = z.object({
@@ -105,6 +107,7 @@ export const resumeSchema = z.object({
   experience: z.array(experienceSchema).default([]),
   apps: z.array(appSchema).default([]),
   gallery: z.array(galleryItemSchema).default([]),
+  photos: z.array(photoSchema).default([]),
   skills: z.array(skillGroupSchema).default([]),
   education: z.array(educationSchema).default([]),
   sections: z
@@ -118,6 +121,7 @@ export type Profile = Resume["profile"];
 export type Experience = Resume["experience"][number];
 export type App = Resume["apps"][number];
 export type Screenshot = App["screenshots"][number];
+export type Photo = Resume["photos"][number];
 export type GalleryItem = Resume["gallery"][number];
 export type SkillGroup = Resume["skills"][number];
 export type Education = Resume["education"][number];

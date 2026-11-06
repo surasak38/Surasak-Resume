@@ -30,6 +30,7 @@ const tabs = [
   { key: "experience", label: "Experience" },
   { key: "apps", label: "Apps" },
   { key: "gallery", label: "Certificates" },
+  { key: "photos", label: "Photos" },
   { key: "skills", label: "Skills & languages" },
   { key: "education", label: "Education" },
   { key: "links", label: "Links" },
@@ -43,6 +44,7 @@ const sectionLabels: Record<SectionKey, string> = {
   experience: "Experience",
   apps: "Apps",
   gallery: "Certificates & activities",
+  photos: "Gallery (photos)",
   skills: "Skills & languages",
   education: "Education",
   contact: "Contact",
@@ -323,6 +325,22 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
                     </>
                   )}
                 </ListEditor>
+              </Panel>
+            )}
+
+            {tab === "photos" && (
+              <Panel
+                title="Photos"
+                description="Event, work and travel photos for the Gallery section. The page shows the first row; visitors open the rest in a grid. Photos are cropped to squares in the grid and shown whole when opened."
+              >
+                <ScreensField
+                  label={`${data.photos.length} photo${data.photos.length === 1 ? "" : "s"}`}
+                  hint="Upload several at once. Drag rows to reorder; the first ones appear on the page."
+                  noun="photo"
+                  firstNote=""
+                  value={data.photos}
+                  onChange={(photos) => patch("photos", photos)}
+                />
               </Panel>
             )}
 

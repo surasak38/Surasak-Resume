@@ -267,6 +267,7 @@ export const defaultResume: Resume = {
       note: { en: "", th: "" },
     },
   ],
-  sections: { about: true, experience: true, apps: true, gallery: true, skills: true, education: true, contact: true },
+  photos: [],
+  sections: { about: true, experience: true, apps: true, gallery: true, photos: true, skills: true, education: true, contact: true },
   updatedAt: "",
 };

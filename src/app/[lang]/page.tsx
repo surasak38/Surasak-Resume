@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Apps } from "@/components/site/apps";
 import { Gallery } from "@/components/site/gallery";
 import { Hero } from "@/components/site/hero";
+import { Photos } from "@/components/site/photos";
 import { Section } from "@/components/site/section";
 import { ThemeToggle } from "@/components/site/theme-toggle";
 import { Timeline } from "@/components/site/timeline";
@@ -45,6 +46,7 @@ export default async function Home({ params }: PageProps<"/[lang]">) {
     experience: sections.experience && data.experience.length > 0,
     apps: sections.apps && data.apps.length > 0,
     gallery: sections.gallery && data.gallery.length > 0,
+    photos: sections.photos && data.photos.length > 0,
     skills: sections.skills && (data.skills.length > 0 || data.spokenLanguages.length > 0),
     education: sections.education && data.education.length > 0,
     contact: sections.contact,
@@ -56,6 +58,7 @@ export default async function Home({ params }: PageProps<"/[lang]">) {
       ["experience", "#experience"],
       ["apps", "#apps"],
       ["gallery", "#gallery"],
+      ["photos", "#photos"],
       ["skills", "#skills"],
       ["contact", "#contact"],
     ] as const
@@ -189,6 +192,24 @@ export default async function Home({ params }: PageProps<"/[lang]">) {
               }))}
               kinds={galleryKinds.map((k) => ({ key: k, label: t.kinds[k] }))}
               labels={{ all: t.all, close: t.close, viewFile: t.viewFile, verify: t.verify }}
+            />
+          </Section>
+        )}
+
+        {show.photos && (
+          <Section id="photos" title={t.photos}>
+            <Photos
+              photos={data.photos.map((p) => ({ src: p.src, caption: tr(p.caption, lang) }))}
+              labels={{
+                title: t.photos,
+                seeAll: t.seeAll,
+                photosCount: t.photosCount,
+                backToGrid: t.backToGrid,
+                photo: t.photo,
+                previous: t.previousPhoto,
+                next: t.nextPhoto,
+                close: t.close,
+              }}
             />
           </Section>
         )}
