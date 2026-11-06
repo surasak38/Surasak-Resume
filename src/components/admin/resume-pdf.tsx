@@ -37,7 +37,7 @@ const L = {
   },
 } as const;
 
-type Part = "summary" | "experience" | "skills" | "certificates" | "education" | "languages" | "apps" | "hobbies" | "photo";
+type Part = "summary" | "experience" | "skills" | "certificates" | "education" | "languages" | "apps" | "hobbies" | "photo" | "phone";
 
 const partLabels: Record<Part, string> = {
   summary: "Profile summary",
@@ -49,6 +49,7 @@ const partLabels: Record<Part, string> = {
   apps: "Apps",
   hobbies: "Hobbies",
   photo: "Photo",
+  phone: "Phone number",
 };
 
 const MIN_SCALE = 0.72;
@@ -70,7 +71,7 @@ function Sheet({ data, lang, parts }: { data: Resume; lang: Locale; parts: Recor
   const other: Locale = lang === "en" ? "th" : "en";
   const name = tr(p.name, lang);
   const altName = p.name[other] && p.name[other] !== name ? p.name[other] : "";
-  const contact = [tr(p.location, lang), p.phone, p.email].filter(Boolean);
+  const contact = [tr(p.location, lang), parts.phone ? p.phone : "", p.email].filter(Boolean);
   const kinds: GalleryKind[] = ["certificate", "training", "competition", "activity"];
   const hobbies = trList(p.hobbies, lang);
 
@@ -278,6 +279,7 @@ export function ResumePdf({
     apps: false,
     hobbies: false,
     photo: false,
+    phone: all.profile.phoneInPdf,
   });
   const [fit, setFit] = useState({ scale: 1, overflow: false });
   const [preview, setPreview] = useState(1);
@@ -342,6 +344,7 @@ export function ResumePdf({
     apps: data.apps.length > 0,
     hobbies: trList(data.profile.hobbies, lang).length > 0,
     photo: Boolean(data.profile.photo),
+    phone: Boolean(data.profile.phone),
   };
   const shown = Object.fromEntries((Object.keys(parts) as Part[]).map((k) => [k, parts[k] && available[k]])) as Record<Part, boolean>;
 

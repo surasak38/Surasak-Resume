@@ -242,6 +242,14 @@ export function Editor({ initial, handle, userId, email, isPublic, legacyImport 
                     <TextField label="Email" type="email" value={data.profile.email} onChange={(email) => profile({ email })} />
                     <TextField label="Phone" hint="Shown publicly in Contact. Leave empty to hide." value={data.profile.phone} onChange={(phone) => profile({ phone })} />
                   </div>
+                  <div className="divide-y divide-rule border-y border-rule">
+                    <Toggle
+                      label="Show phone number in the one-page PDF"
+                      hint="Turn off to keep your number out of exported resumes. It still shows in Contact on your page."
+                      checked={data.profile.phoneInPdf}
+                      onChange={(phoneInPdf) => profile({ phoneInPdf })}
+                    />
+                  </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <FileField label="Resume PDF (English)" accept="pdf" value={data.profile.resumeFile.en} onChange={(en) => profile({ resumeFile: { ...data.profile.resumeFile, en } })} />
                     <FileField label="Resume PDF (Thai)" accept="pdf" value={data.profile.resumeFile.th} onChange={(th) => profile({ resumeFile: { ...data.profile.resumeFile, th } })} />
