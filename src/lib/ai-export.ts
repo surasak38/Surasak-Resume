@@ -173,7 +173,7 @@ export function summarizeChanges(before: Resume, after: Resume): Change[] {
 export function droppedMedia(before: Resume, after: Resume): number {
   const collect = (v: unknown, s: Set<string>) => {
     if (typeof v === "string") {
-      if (/^https?:\/\/.+\/storage\/v1\/object\/public\//.test(v) || v.startsWith("/media/")) s.add(v);
+      if (/^https?:\/\/.+\/storage\/v1\/object\/public\//.test(v)) s.add(v);
     } else if (Array.isArray(v)) v.forEach((x) => collect(x, s));
     else if (v && typeof v === "object") Object.values(v).forEach((x) => collect(x, s));
   };

@@ -4,11 +4,11 @@ const id = z.string().min(1);
 const text = z.string().trim();
 /** "YYYY-MM" or "YYYY". Empty `end` means ongoing. */
 const period = z.string().trim().regex(/^(\d{4}(-\d{2})?)?$/, "Use YYYY or YYYY-MM");
-/** An uploaded file (Supabase Storage URL, or /media/... from the earlier Blob version) or any absolute URL. */
+/** An uploaded file (Supabase Storage URL) or any absolute URL. */
 const media = z
   .string()
   .trim()
-  .refine((v) => v === "" || v.startsWith("/media/") || /^https?:\/\//.test(v), "Must be an uploaded file or a URL");
+  .refine((v) => v === "" || /^https?:\/\//.test(v), "Must be an uploaded file or a URL");
 
 const L = z.object({ en: text.default(""), th: text.default("") }).default({ en: "", th: "" });
 const LList = z.object({ en: z.array(text).default([]), th: z.array(text).default([]) }).default({ en: [], th: [] });

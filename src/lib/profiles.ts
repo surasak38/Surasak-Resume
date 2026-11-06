@@ -1,14 +1,11 @@
 import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
-import { legacyImportEnabled, readLegacyResume } from "./legacy";
 import { resumeSchema, type Resume } from "./schema";
 import { createPublicClient } from "./supabase/public";
 import { createClient } from "./supabase/server";
 
 export const profileTag = (handle: string) => `profile:${handle}`;
 export const DIRECTORY_TAG = "profiles";
-
-const LEGACY_HANDLE = process.env.LEGACY_HANDLE || "surasak.jrs";
 
 export const HANDLE_PATTERN = /^[a-z0-9](?:[a-z0-9._-]{1,28}[a-z0-9])$/;
 
@@ -42,13 +39,7 @@ export async function getPublicProfile(handle: string): Promise<PublicProfile | 
     .eq("is_public", true)
     .maybeSingle();
   if (error) throw new Error(`Loading profile failed: ${error.message}`);
-  if (data) return { id: data.id, handle: data.handle, data: parseResume(data.data) };
-
-  // Until the original owner claims their handle and publishes, keep serving the earlier site's data.
-  if (handle === LEGACY_HANDLE && legacyImportEnabled()) {
-    return { id: "legacy", handle, data: await readLegacyResume() };
-  }
-  return null;
+  return data ? { id: data.id, handle: data.handle, data: parseResume(data.data) } : null;
 }
 
 function toCard(row: { handle: string; profile: Record<string, unknown> | null }): ProfileCard {

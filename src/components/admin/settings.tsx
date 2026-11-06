@@ -2,13 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { changeHandle, importLegacy, setVisibility } from "@/app/[handle]/admin/actions";
-import type { Resume } from "@/lib/schema";
+import { changeHandle, setVisibility } from "@/app/[handle]/admin/actions";
 import { createClient } from "@/lib/supabase/client";
 import { Toggle } from "./fields";
 
 const PATTERN = /^[a-z0-9](?:[a-z0-9._-]{1,28}[a-z0-9])$/;
-const input = "block w-full rounded-md border border-rule bg-paper px-3 py-2 text-[15px] outline-none transition-colors focus:border-ink";
 const btn = "rounded-md border border-ink px-4 py-2 text-sm font-medium transition-opacity disabled:opacity-40";
 
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
@@ -26,14 +24,10 @@ export function Settings({
   handle,
   email,
   isPublic,
-  legacyImport,
-  onImported,
 }: {
   handle: string;
   email: string;
   isPublic: boolean;
-  legacyImport: boolean;
-  onImported: (data: Resume) => void;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -42,8 +36,6 @@ export function Settings({
   const [handleMsg, setHandleMsg] = useState("");
   const [visible, setVisible] = useState(isPublic);
   const [visibilityMsg, setVisibilityMsg] = useState("");
-  const [password, setPassword] = useState("");
-  const [importMsg, setImportMsg] = useState("");
 
   const candidate = next.trim().toLowerCase();
   useEffect(() => {
@@ -84,15 +76,6 @@ export function Settings({
       setVisibilityMsg(v ? "Your profile is public and appears in search." : "Your profile is hidden. Only you can see it while signed in.");
     });
 
-  const runImport = () =>
-    start(async () => {
-      setImportMsg("Copying your old resume and its files…");
-      const res = await importLegacy(password);
-      if (!res.ok) return setImportMsg(res.error);
-      onImported(res.data);
-      setImportMsg("");
-      alert(`Imported your resume and ${res.copied} files${res.missing ? ` (${res.missing} files were missing)` : ""}. Review it, then press Publish.`);
-    });
 
   return (
     <section>
@@ -142,24 +125,6 @@ export function Settings({
         )}
       </Block>
 
-      {legacyImport && (
-        <Block title="Import from the previous site">
-          <p className="max-w-[70ch] text-sm text-muted">
-            Brings in the resume, photos and files from the single-person version of this site. Enter that site&apos;s old admin password. The import fills the editor; nothing is published until you press Publish.
-          </p>
-          <div className="mt-4 flex max-w-xl flex-wrap gap-3">
-            <input type="password" aria-label="Old admin password" placeholder="Old admin password" value={password} onChange={(e) => setPassword(e.target.value)} className={`${input} min-w-0 flex-1`} />
-            <button type="button" className={btn} disabled={pending || !password} onClick={runImport}>
-              Import
-            </button>
-          </div>
-          {importMsg && (
-            <p role="status" className="mt-2 text-sm">
-              {importMsg}
-            </p>
-          )}
-        </Block>
-      )}
 
       <Block title="Account">
         <p className="text-sm">

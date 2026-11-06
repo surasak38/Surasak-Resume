@@ -2,7 +2,6 @@
 
 import { updateTag } from "next/cache";
 import { DIRECTORY_TAG, HANDLE_PATTERN, profileTag } from "@/lib/profiles";
-import { importLegacyInto, legacyPasswordMatches } from "@/lib/legacy";
 import { resumeSchema, type Resume } from "@/lib/schema";
 import { createClient, currentUser } from "@/lib/supabase/server";
 
@@ -68,22 +67,4 @@ export async function setVisibility(isPublic: boolean): Promise<VisibilityResult
   updateTag(profileTag(row.handle));
   updateTag(DIRECTORY_TAG);
   return { ok: true, isPublic };
-}
-
-export type ImportResult = { ok: true; data: Resume; copied: number; missing: number } | Fail;
-
-/** Loads the earlier single-person site's data into the editor (not published until the user presses Publish). */
-export async function importLegacy(password: string): Promise<ImportResult> {
-  const user = await currentUser();
-  if (!user) return SESSION_EXPIRED;
-  if (!legacyPasswordMatches(password)) {
-    await new Promise((r) => setTimeout(r, 600));
-    return { ok: false, error: "That isn't the old admin password." };
-  }
-  try {
-    const { resume, copied, missing } = await importLegacyInto(user.id);
-    return { ok: true, data: resume, copied, missing };
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Import failed." };
-  }
 }

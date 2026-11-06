@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Editor } from "@/components/admin/editor";
-import { legacyImportEnabled } from "@/lib/legacy";
 import { getOwnProfile } from "@/lib/profiles";
 import { currentUser } from "@/lib/supabase/server";
 
@@ -35,7 +34,6 @@ async function AdminGate({ params }: PageProps<"/[handle]/admin">) {
       userId={user.id}
       email={user.email}
       isPublic={own.isPublic}
-      legacyImport={legacyImportEnabled()}
     />
   );
 }

@@ -78,9 +78,9 @@ const label = (v: { en: string; th: string }) => tr(v, "en");
 
 type Status = { kind: "idle" } | { kind: "saved"; at: string } | { kind: "error"; message: string };
 
-type EditorProps = { initial: Resume; handle: string; userId: string; email: string; isPublic: boolean; legacyImport: boolean };
+type EditorProps = { initial: Resume; handle: string; userId: string; email: string; isPublic: boolean };
 
-export function Editor({ initial, handle, userId, email, isPublic, legacyImport }: EditorProps) {
+export function Editor({ initial, handle, userId, email, isPublic }: EditorProps) {
   const [data, setData] = useState(initial);
   const [saved, setSaved] = useState(() => JSON.stringify(initial));
   // ?tab=<key> selects a tab, so each one has its own link.
@@ -484,13 +484,6 @@ export function Editor({ initial, handle, userId, email, isPublic, legacyImport 
                 handle={handle}
                 email={email}
                 isPublic={isPublic}
-                legacyImport={legacyImport}
-                onImported={(next) => {
-                  setData(next);
-                  setFormKey((k) => k + 1);
-                  setStatus({ kind: "idle" });
-                  setTab("profile");
-                }}
               />
             )}
 

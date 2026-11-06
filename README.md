@@ -27,10 +27,6 @@ Supabase project `surasak-resume` (Singapore):
 
 Public profile pages are cached per handle and refreshed when the owner publishes.
 
-### Moving data from the single-person version
-
-That version stored one resume in Vercel Blob. Until its owner signs up as `LEGACY_HANDLE`, `/LEGACY_HANDLE/profile` keeps showing the Blob data. After signing up, open **Link & account → Import from the previous site**, enter the old `ADMIN_PASSWORD`, review, and press **Publish**. The import copies every referenced file into Supabase Storage.
-
 ## Run locally
 
 ```bash
@@ -44,7 +40,7 @@ npm run dev
 | Variable | Needed for |
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Everything |
-| `LEGACY_HANDLE` | Old-URL redirects and the Blob fallback (default `surasak.jrs`) |
-| `ADMIN_PASSWORD`, `BLOB_READ_WRITE_TOKEN` | Only for importing from the single-person version; remove both once imported |
+| `LEGACY_HANDLE` | Where the old `/en`, `/th` and `/admin` links redirect (default `surasak.jrs`) |
+| `NEXT_PUBLIC_SITE_URL` | Public address, used for share links (default `https://eresume-lab.vercel.app`) |
 
 In Supabase → Authentication → URL Configuration, set the Site URL to the deployed URL and add `<site>/auth/confirm` to the redirect URLs, so confirmation emails land back on the app.
