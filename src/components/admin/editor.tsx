@@ -216,7 +216,7 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
             {tab === "profile" && (
               <Panel title="Profile" description="Your name, photo and introduction. Fill in English and Thai; an empty language falls back to the other one.">
                 <div className="grid gap-5">
-                  <FileField label="Profile photo" hint="Shown in black and white next to About. Square or portrait works best." aspect="aspect-[4/5]" value={data.profile.photo} onChange={(photo) => profile({ photo })} />
+                  <FileField label="Profile photo" hint="Shown next to About. Square or portrait works best." aspect="aspect-[4/5]" value={data.profile.photo} onChange={(photo) => profile({ photo })} />
                   <LocalizedField label="Name" value={data.profile.name} onChange={(name) => profile({ name })} />
                   <LocalizedField label="Headline" value={data.profile.headline} onChange={(headline) => profile({ headline })} />
                   <LocalizedField label="Location" value={data.profile.location} onChange={(location) => profile({ location })} />

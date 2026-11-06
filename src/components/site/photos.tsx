@@ -172,7 +172,7 @@ export function Photos({ photos, labels }: { photos: PhotoItem[]; labels: Labels
                 src={p.src}
                 alt=""
                 loading="lazy"
-                className="size-full object-cover grayscale transition duration-700 ease-out-quint group-hover:scale-[1.04] group-hover:grayscale-0"
+                className="size-full object-cover transition duration-700 ease-out-quint group-hover:scale-[1.04]"
               />
             </button>
           </li>

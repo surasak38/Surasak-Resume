@@ -130,7 +130,7 @@ export default async function Home({ params }: PageProps<"/[lang]">) {
                 <img
                   src={profile.photo}
                   alt={name}
-                  className="aspect-[4/5] w-48 rounded-sm object-cover grayscale transition duration-700 ease-out-quint hover:grayscale-0 lg:w-60"
+                  className="aspect-[4/5] w-48 rounded-sm object-cover lg:w-60"
                 />
               )}
             </div>

@@ -70,7 +70,7 @@ export function Gallery({ items, kinds, labels }: { items: GalleryCard[]; kinds:
                         src={item.image}
                         alt=""
                         loading="lazy"
-                        className="size-full object-cover grayscale transition duration-700 ease-out-quint group-hover:scale-[1.03] group-hover:grayscale-0"
+                        className="size-full object-cover transition duration-700 ease-out-quint group-hover:scale-[1.03]"
                       />
                     ) : (
                       // No scan yet: a quiet seal instead of repeating the title.

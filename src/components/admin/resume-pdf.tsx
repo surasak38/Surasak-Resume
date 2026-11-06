@@ -100,7 +100,7 @@ function Sheet({ data, lang, parts }: { data: Resume; lang: Locale; parts: Recor
         </div>
         {parts.photo && p.photo && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={p.photo} alt="" className="h-[30mm] w-[24mm] shrink-0 object-cover grayscale" />
+          <img src={p.photo} alt="" className="h-[30mm] w-[24mm] shrink-0 object-cover" />
         )}
       </header>
 
