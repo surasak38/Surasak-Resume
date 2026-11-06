@@ -1,8 +1,9 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import { useMemo } from "react";
-import { useQueryParam } from "@/lib/use-query-param";
+import { setQueryParams, useQueryParam } from "@/lib/use-query-param";
+import { DocViewer, isPdf } from "./doc-viewer";
 import { Modal } from "./modal";
 
 export type GalleryCard = {
@@ -12,33 +13,75 @@ export type GalleryCard = {
   title: string;
   issuer: string;
   date: string;
-  image: string;
-  file: string;
+  /** The certificate itself: a PDF or an image. Empty when there's nothing to open. */
+  doc: string;
   url: string;
 };
 
-type Labels = { all: string; close: string; viewFile: string; verify: string };
+type Labels = {
+  all: string;
+  close: string;
+  verify: string;
+  rotateLeft: string;
+  rotateRight: string;
+  openOriginal: string;
+  failed: string;
+  pdf: string;
+  image: string;
+};
+
+function Icon({ pdf }: { pdf: boolean }) {
+  return (
+    <svg viewBox="0 0 20 20" className="size-5 shrink-0" aria-hidden>
+      {pdf ? (
+        <>
+          <path d="M5 2.5h7l3.5 3.5v11.5h-10.5z M12 2.5v3.5h3.5" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+          <path d="M7.5 10h5M7.5 12.5h5M7.5 15h3" stroke="currentColor" strokeWidth="1.3" />
+        </>
+      ) : (
+        <>
+          <rect x="2.5" y="4" width="15" height="12" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.3" />
+          <circle cx="7" cy="8.5" r="1.4" fill="currentColor" />
+          <path d="M3 15l4.5-4.5 3 3 2.5-2.5 4.5 4.5" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+const rotateIcon = (dir: 1 | -1) => (
+  <svg viewBox="0 0 20 20" className="size-4" aria-hidden style={dir === -1 ? { transform: "scaleX(-1)" } : undefined}>
+    <path d="M15.5 9.5a5.5 5.5 0 1 1-1.8-4.1" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <path d="M14.5 2.5v3.5H11" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const toolBtn = "grid size-9 place-items-center rounded-full border border-rule bg-paper transition-colors hover:border-ink";
 
 export function Gallery({ items, kinds, labels }: { items: GalleryCard[]; kinds: { key: string; label: string }[]; labels: Labels }) {
-  // ?certs=<kind> filters the grid; ?cert=<id> opens one item.
+  // ?certs=<kind> filters the list; ?cert=<id> opens one document; ?rot=90|180|270 turns it.
   const [filterParam, setFilterParam] = useQueryParam("certs");
   const filter = filterParam ?? "all";
-  const setFilter = (k: string) => setFilterParam(k === "all" ? null : k);
-  const [openId, setOpenIdParam] = useQueryParam("cert");
-  const setOpenId = (id: string | null) => setOpenIdParam(id, { push: id !== null });
+  const [openId] = useQueryParam("cert");
+  const [rotParam, setRot] = useQueryParam("rot");
+  const rotation = ((Number(rotParam) || 0) % 360 + 360) % 360;
+
   const visible = useMemo(() => (filter === "all" ? items : items.filter((i) => i.kind === filter)), [items, filter]);
   const usedKinds = kinds.filter((k) => items.some((i) => i.kind === k.key));
-  const open = items.find((i) => i.id === openId) ?? null;
+  const open = items.find((i) => i.id === openId && i.doc) ?? null;
+
+  const turn = (dir: 1 | -1) => setRot(String((rotation + dir * 90 + 360) % 360 || "") || null);
+  const close = () => setQueryParams({ cert: null, rot: null });
 
   return (
     <>
       {usedKinds.length > 1 && (
-        <div role="group" className="mb-8 flex flex-wrap gap-2">
+        <div role="group" className="mb-6 flex flex-wrap gap-2">
           {[{ key: "all", label: labels.all }, ...usedKinds].map((k) => (
             <button
               key={k.key}
               type="button"
-              onClick={() => setFilter(k.key)}
+              onClick={() => setFilterParam(k.key === "all" ? null : k.key)}
               aria-pressed={filter === k.key}
               className="relative rounded-full border border-rule px-3.5 py-1.5 text-sm transition-colors hover:border-ink"
             >
@@ -49,90 +92,72 @@ export function Gallery({ items, kinds, labels }: { items: GalleryCard[]; kinds:
         </div>
       )}
 
-      <motion.ul layout className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-        <AnimatePresence initial={false} mode="popLayout">
-          {visible.map((item) => {
-            const clickable = Boolean(item.image || item.file || item.url);
-            return (
-              <motion.li
-                key={item.id}
-                layout
-                initial={{ opacity: 0, scale: 0.96 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.96 }}
-                transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-              >
+      <ul className="grid border-t border-rule sm:grid-cols-2 sm:gap-x-8">
+        {visible.map((item) => {
+          const meta = [item.kindLabel, item.issuer, item.date].filter(Boolean).join(", ");
+          const body = (
+            <>
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium leading-snug">{item.title}</span>
+                {meta && <span className="mt-0.5 block text-sm text-muted">{meta}</span>}
+              </span>
+              {item.doc && (
+                <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted transition-colors group-hover:text-ink">
+                  <Icon pdf={isPdf(item.doc)} />
+                  {isPdf(item.doc) ? labels.pdf : labels.image}
+                </span>
+              )}
+            </>
+          );
+          return (
+            <li key={item.id} className="border-b border-rule">
+              {item.doc ? (
                 <button
                   type="button"
-                  disabled={!clickable}
-                  onClick={() => setOpenId(item.id)}
-                  className="group flex h-full w-full flex-col overflow-hidden rounded-xl border border-rule text-left transition-colors duration-500 enabled:hover:border-ink disabled:cursor-default"
+                  onClick={() => {
+                    setQueryParams({ cert: item.id, rot: null }, { push: true });
+                  }}
+                  className="group flex w-full items-start gap-4 py-4 text-left"
                 >
-                  <div className="relative aspect-[4/3] w-full overflow-hidden bg-wash">
-                    {item.image ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={item.image}
-                        alt=""
-                        loading="lazy"
-                        className="size-full object-cover transition duration-700 ease-out-quint group-hover:scale-[1.03]"
-                      />
-                    ) : (
-                      // No scan yet: a quiet seal instead of repeating the title.
-                      <svg viewBox="0 0 48 48" aria-hidden className="absolute left-1/2 top-1/2 size-12 -translate-x-1/2 -translate-y-1/2 text-ink/25 transition-transform duration-700 ease-out-quint group-hover:rotate-12">
-                        <circle cx="24" cy="20" r="11" fill="none" stroke="currentColor" strokeWidth="1.5" />
-                        <circle cx="24" cy="20" r="6" fill="none" stroke="currentColor" strokeWidth="1.5" />
-                        <path d="M17 29l-4 13 7-3 4 6 3-11M31 29l4 13-7-3-4 6" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-                      </svg>
-                    )}
-                  </div>
-                  <div className="flex flex-1 flex-col gap-1 p-3">
-                    <p className="text-xs text-muted">
-                      {item.kindLabel}
-                      {item.date && <span className="tabular">, {item.date}</span>}
-                    </p>
-                    <h3 className="text-sm font-medium leading-snug sm:text-base">{item.title}</h3>
-                    {item.issuer && <p className="text-xs text-muted sm:text-sm">{item.issuer}</p>}
-                  </div>
+                  {body}
                 </button>
-              </motion.li>
-            );
-          })}
-        </AnimatePresence>
-      </motion.ul>
-
-      <Modal open={Boolean(open)} onClose={() => setOpenId(null)} label={open?.title ?? ""} closeLabel={labels.close} size={open?.image ? "lg" : "md"}>
-        {open && (
-          <div>
-            {open.image && (
-              <div className="flex max-h-[70dvh] items-center justify-center bg-wash p-4 sm:p-6">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={open.image} alt={open.title} className="max-h-[calc(70dvh-3rem)] w-auto max-w-full object-contain" />
-              </div>
-            )}
-            <div className="p-6 pr-14">
-              <p className="text-sm text-muted">
-                {open.kindLabel}
-                {open.date && <span className="tabular">, {open.date}</span>}
-              </p>
-              <h3 className="mt-1 font-display text-2xl font-semibold tracking-tight" style={{ fontVariationSettings: '"wdth" 85' }}>
-                {open.title}
-              </h3>
-              {open.issuer && <p className="text-muted">{open.issuer}</p>}
-              {(open.file || open.url) && (
-                <div className="mt-5 flex flex-wrap gap-3">
-                  {open.file && (
-                    <a href={open.file} target="_blank" rel="noreferrer" className="rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-paper">
-                      {labels.viewFile}
-                    </a>
-                  )}
-                  {open.url && (
-                    <a href={open.url} target="_blank" rel="noreferrer" className="rounded-full border border-ink px-5 py-2.5 text-sm font-medium">
-                      {labels.verify}
-                    </a>
-                  )}
-                </div>
+              ) : (
+                <div className="flex items-start gap-4 py-4">{body}</div>
               )}
+            </li>
+          );
+        })}
+      </ul>
+
+      <Modal open={Boolean(open)} onClose={close} label={open?.title ?? ""} closeLabel={labels.close} size="xl">
+        {open && (
+          <div className="flex h-full flex-col">
+            <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-rule py-3 pl-5 pr-16">
+              <div className="min-w-0 flex-1 max-sm:basis-full">
+                <h3 className="truncate font-display text-xl font-semibold tracking-tight" style={{ fontVariationSettings: '"wdth" 85' }}>
+                  {open.title}
+                </h3>
+                <p className="truncate text-xs text-muted">{[open.kindLabel, open.issuer, open.date].filter(Boolean).join(", ")}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => turn(-1)} aria-label={labels.rotateLeft} title={labels.rotateLeft} className={toolBtn}>
+                  {rotateIcon(-1)}
+                </button>
+                <button type="button" onClick={() => turn(1)} aria-label={labels.rotateRight} title={labels.rotateRight} className={toolBtn}>
+                  {rotateIcon(1)}
+                </button>
+                <a href={open.doc} target="_blank" rel="noreferrer" className="rounded-full border border-rule px-3.5 py-2 text-sm transition-colors hover:border-ink">
+                  {labels.openOriginal}
+                </a>
+                {open.url && (
+                  <a href={open.url} target="_blank" rel="noreferrer" className="rounded-full bg-ink px-3.5 py-2 text-sm font-medium text-paper">
+                    {labels.verify}
+                  </a>
+                )}
+              </div>
+            </div>
+            <div className="min-h-0 flex-1 bg-wash">
+              <DocViewer key={open.doc} src={open.doc} title={open.title} rotation={rotation} failedLabel={labels.failed} />
             </div>
           </div>
         )}

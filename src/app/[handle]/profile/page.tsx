@@ -216,12 +216,21 @@ async function ProfileView({ params, searchParams }: Props) {
                 title: tr(g.title, lang),
                 issuer: tr(g.issuer, lang),
                 date: formatPoint(g.date, lang),
-                image: g.image,
-                file: g.file,
+                doc: g.file || g.image,
                 url: g.url,
               }))}
               kinds={galleryKinds.map((k) => ({ key: k, label: t.kinds[k] }))}
-              labels={{ all: t.all, close: t.close, viewFile: t.viewFile, verify: t.verify }}
+              labels={{
+                all: t.all,
+                close: t.close,
+                verify: t.verify,
+                rotateLeft: t.rotateLeft,
+                rotateRight: t.rotateRight,
+                openOriginal: t.openOriginal,
+                failed: t.docFailed,
+                pdf: t.docPdf,
+                image: t.docImage,
+              }}
             />
           </Section>
         )}

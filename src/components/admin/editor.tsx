@@ -337,7 +337,7 @@ export function Editor({ initial, handle, userId, email, isPublic }: EditorProps
             )}
 
             {tab === "gallery" && (
-              <Panel title="Certificates & activities" description="Certificates, training, competitions and event photos. Upload a scan or photo, and optionally the original PDF.">
+              <Panel title="Certificates & activities" description="Certificates, training and competitions. Upload the certificate as a PDF or an image; visitors open it full size from the list and can rotate it.">
                 <ListEditor<GalleryItem>
                   pdfToggle
                   items={data.gallery}
@@ -346,7 +346,7 @@ export function Editor({ initial, handle, userId, email, isPublic }: EditorProps
                   addLabel="Add a certificate or activity"
                   emptyText="Nothing here yet."
                   title={(g) => label(g.title)}
-                  subtitle={(g) => [kindLabels[g.kind], g.date, g.image ? "has image" : "no image"].filter(Boolean).join(", ")}
+                  subtitle={(g) => [kindLabels[g.kind], g.date, g.file || g.image ? (/\.pdf$/i.test(g.file || g.image) ? "PDF" : "image") : "no file"].filter(Boolean).join(", ")}
                 >
                   {(g, set) => (
                     <>
@@ -354,8 +354,14 @@ export function Editor({ initial, handle, userId, email, isPublic }: EditorProps
                       <TextField label="Date" placeholder="2024-05" hint="YYYY-MM or YYYY" value={g.date} onChange={(date) => set({ date })} />
                       <LocalizedField className="sm:col-span-2" label="Title" value={g.title} onChange={(title) => set({ title })} />
                       <LocalizedField className="sm:col-span-2" label="Issued by / organizer" value={g.issuer} onChange={(issuer) => set({ issuer })} />
-                      <FileField label="Image" hint="Certificate scan or event photo" value={g.image} onChange={(image) => set({ image })} />
-                      <FileField label="Original file" hint="Optional PDF or full-size image" accept="image+pdf" value={g.file} onChange={(file) => set({ file })} />
+                      <FileField
+                        className="sm:col-span-2"
+                        label="Certificate file"
+                        hint="PDF or image (JPG, PNG, WebP). Shown full size when someone selects the title."
+                        accept="image+pdf"
+                        value={g.file || g.image}
+                        onChange={(file) => set({ file, image: "" })}
+                      />
                       <TextField className="sm:col-span-2" label="Verification link" hint="Optional, e.g. Credly" value={g.url} onChange={(url) => set({ url })} />
                     </>
                   )}

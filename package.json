@@ -14,6 +14,7 @@
     "jose": "^6.2.15",
     "motion": "^14.9.1",
     "next": "16.4.5",
+    "pdfjs-dist": "^6.5.438",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "server-only": "^0.0.1",
