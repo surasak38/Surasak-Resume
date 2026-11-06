@@ -251,6 +251,7 @@ function forPdf(data: Resume): Resume {
     skills: data.skills.filter((i) => i.pdf),
     education: data.education.filter((i) => i.pdf),
     spokenLanguages: data.spokenLanguages.filter((i) => i.pdf),
+    links: data.links.filter((i) => i.pdf),
   };
 }
 

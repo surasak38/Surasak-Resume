@@ -35,7 +35,7 @@ export const profileSchema = z.object({
 
 export const spokenLanguageSchema = z.object({ id, name: L, level: L, pdf: inPdf });
 
-export const linkSchema = z.object({ id, label: text.min(1, "Link label is required"), url: text.min(1, "Link URL is required") });
+export const linkSchema = z.object({ id, label: text.min(1, "Link label is required"), url: text.min(1, "Link URL is required"), pdf: inPdf });
 
 export const experienceSchema = z.object({
   id,

@@ -435,9 +435,10 @@ export function Editor({ initial, handle, userId, email, isPublic, legacyImport 
             {tab === "links" && (
               <Panel title="Links" description="Profiles shown under your name and in Contact. Labels are the same in both languages.">
                 <ListEditor<Link>
+                  pdfToggle
                   items={data.links}
                   onChange={(v) => patch("links", v)}
-                  create={() => ({ label: "", url: "" })}
+                  create={() => ({ label: "", url: "", pdf: true })}
                   addLabel="Add a link"
                   emptyText="No links yet."
                   title={(l) => l.label}
