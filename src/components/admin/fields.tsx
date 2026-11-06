@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { Localized, LocalizedList } from "@/lib/i18n";
-import { uploadFile } from "./upload";
+import { uploadFile, useUploadOwner } from "./upload";
 
 const inputCls =
   "block w-full rounded-md border border-rule bg-paper px-3 py-2 text-[15px] outline-none transition-colors placeholder:text-muted/60 focus:border-ink";
@@ -178,6 +178,7 @@ export function Toggle({ label, hint, checked, onChange }: { label: string; hint
 }
 
 function useUploader(onDone: (urls: string[]) => void) {
+  const owner = useUploadOwner();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const run = async (files: File[]) => {
@@ -186,7 +187,7 @@ function useUploader(onDone: (urls: string[]) => void) {
     setError("");
     const urls: string[] = [];
     try {
-      for (const f of files) urls.push(await uploadFile(f));
+      for (const f of files) urls.push(await uploadFile(f, owner));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed.");
     } finally {

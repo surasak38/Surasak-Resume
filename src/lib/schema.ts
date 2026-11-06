@@ -4,7 +4,7 @@ const id = z.string().min(1);
 const text = z.string().trim();
 /** "YYYY-MM" or "YYYY". Empty `end` means ongoing. */
 const period = z.string().trim().regex(/^(\d{4}(-\d{2})?)?$/, "Use YYYY or YYYY-MM");
-/** A file served by this site (/media/...) or an absolute URL. */
+/** An uploaded file (Supabase Storage URL, or /media/... from the earlier Blob version) or any absolute URL. */
 const media = z
   .string()
   .trim()
@@ -12,6 +12,9 @@ const media = z
 
 const L = z.object({ en: text.default(""), th: text.default("") }).default({ en: "", th: "" });
 const LList = z.object({ en: z.array(text).default([]), th: z.array(text).default([]) }).default({ en: [], th: [] });
+
+/** Whether a list item appears in the one-page PDF resume. */
+const inPdf = z.boolean().default(true);
 
 /** Localized text where at least one language must be filled in. */
 const requiredL = (message: string) => L.refine((v) => Boolean(v.en || v.th), message);
@@ -30,7 +33,7 @@ export const profileSchema = z.object({
   hobbies: LList,
 });
 
-export const spokenLanguageSchema = z.object({ id, name: L, level: L });
+export const spokenLanguageSchema = z.object({ id, name: L, level: L, pdf: inPdf });
 
 export const linkSchema = z.object({ id, label: text.min(1, "Link label is required"), url: text.min(1, "Link URL is required") });
 
@@ -43,6 +46,7 @@ export const experienceSchema = z.object({
   end: period.default(""),
   description: L,
   highlights: LList,
+  pdf: inPdf,
 });
 
 export const appFrames = ["auto", "phone", "tablet", "browser", "none"] as const;
@@ -67,6 +71,7 @@ export const appSchema = z.object({
   icon: media.default(""),
   frame: z.enum(appFrames).default("auto"),
   screenshots: z.array(screenshotSchema).default([]),
+  pdf: inPdf,
 });
 
 export const galleryKinds = ["certificate", "training", "competition", "activity"] as const;
@@ -81,9 +86,10 @@ export const galleryItemSchema = z.object({
   image: media.default(""),
   file: media.default(""),
   url: text.default(""),
+  pdf: inPdf,
 });
 
-export const skillGroupSchema = z.object({ id, group: L, items: z.array(text).default([]) });
+export const skillGroupSchema = z.object({ id, group: L, items: z.array(text).default([]), pdf: inPdf });
 
 export const educationSchema = z.object({
   id,
@@ -92,6 +98,7 @@ export const educationSchema = z.object({
   start: period.default(""),
   end: period.default(""),
   note: L,
+  pdf: inPdf,
 });
 
 export const photoSchema = z.object({ src: media.refine(Boolean, "Photo is missing its image"), caption: L });
@@ -127,3 +134,8 @@ export type SkillGroup = Resume["skills"][number];
 export type Education = Resume["education"][number];
 export type Link = Resume["links"][number];
 export type SpokenLanguage = Resume["spokenLanguages"][number];
+
+/** A blank resume for a new account. */
+export function emptyResume(name = "", email = ""): Resume {
+  return resumeSchema.parse({ profile: { name: { en: name || "Your name", th: "" }, email } });
+}

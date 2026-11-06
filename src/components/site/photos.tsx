@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { setQueryParams, useQueryParam } from "@/lib/use-query-param";
 import { Modal } from "./modal";
 
 export type PhotoItem = { src: string; caption: string };
@@ -36,6 +37,7 @@ function Viewer({ photos, start, labels, onBack }: { photos: PhotoItem[]; start:
   const indexRef = useRef(start);
   useEffect(() => {
     indexRef.current = index;
+    setQueryParams({ photos: String(index + 1) });
   }, [index]);
   useEffect(() => {
     const el = track.current;
@@ -141,14 +143,18 @@ function Viewer({ photos, start, labels, onBack }: { photos: PhotoItem[]; start:
 }
 
 export function Photos({ photos, labels }: { photos: PhotoItem[]; labels: Labels }) {
-  const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<number | null>(null);
+  // ?photos=all opens the grid; ?photos=N (1-based) opens photo N in the viewer.
+  const [param, setParam] = useQueryParam("photos");
+  const open = param !== null;
+  const n = Number(param);
+  const selected = Number.isInteger(n) && n >= 1 && n <= photos.length ? n - 1 : null;
+  const setSelected = (i: number | null) => setParam(i === null ? "all" : String(i + 1));
+  const setOpen = (v: boolean) => !v && setParam(null);
   const grid = useRef<HTMLDivElement>(null);
   const gridScroll = useRef(0);
 
   const openAt = (i: number | null) => {
-    setSelected(i);
-    setOpen(true);
+    setParam(i === null ? "all" : String(i + 1), { push: true });
   };
 
   // Coming back from a photo returns to the same spot in the grid.

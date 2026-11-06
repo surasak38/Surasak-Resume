@@ -3,6 +3,7 @@
 import { useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import type { AppFrame } from "@/lib/schema";
+import { setQueryParams, useQueryParam } from "@/lib/use-query-param";
 import { Modal } from "./modal";
 
 export type AppCard = {
@@ -61,9 +62,31 @@ const arrow = (d: string) => (
 function Slideshow({ app, labels }: { app: AppCard; labels: Labels }) {
   const shots = app.screenshots;
   const track = useRef<HTMLDivElement>(null);
-  const [index, setIndex] = useState(0);
+  // ?screen=N (1-based) opens a specific screenshot and follows along as you swipe.
+  const [screenParam] = useQueryParam("screen");
+  const start = Math.min(Math.max(Number(screenParam) || 1, 1), Math.max(shots.length, 1)) - 1;
+  const [index, setIndex] = useState(start);
   const [portrait, setPortrait] = useState<Record<number, boolean>>({});
   const reduce = useReducedMotion();
+
+  // The dialog has no width on the first frame; position once it does, and re-align on resize.
+  const indexRef = useRef(start);
+  useEffect(() => {
+    indexRef.current = index;
+    if (shots.length > 1) setQueryParams({ screen: index > 0 ? String(index + 1) : null });
+  }, [index, shots.length]);
+  useEffect(() => {
+    const el = track.current;
+    if (!el) return;
+    let width = 0;
+    const ro = new ResizeObserver(() => {
+      if (!el.clientWidth || el.clientWidth === width) return;
+      width = el.clientWidth;
+      el.scrollLeft = indexRef.current * width;
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     const el = track.current;
@@ -191,7 +214,8 @@ function Slideshow({ app, labels }: { app: AppCard; labels: Labels }) {
 }
 
 export function Apps({ apps, labels }: { apps: AppCard[]; labels: Labels }) {
-  const [openId, setOpenId] = useState<string | null>(null);
+  // ?app=<id> opens that app's viewer, so it can be linked to directly.
+  const [openId, setOpenId] = useQueryParam("app");
   const app = apps.find((a) => a.id === openId) ?? null;
 
   return (
@@ -201,7 +225,7 @@ export function Apps({ apps, labels }: { apps: AppCard[]; labels: Labels }) {
           <li key={a.id}>
             <button
               type="button"
-              onClick={() => setOpenId(a.id)}
+              onClick={() => setOpenId(a.id, { push: true })}
               className="group block w-full overflow-hidden rounded-2xl border border-rule text-left transition-colors duration-500 hover:border-ink"
             >
               <div className="relative flex aspect-[4/3] items-end justify-center overflow-hidden bg-wash px-8 pt-8">
@@ -235,7 +259,7 @@ export function Apps({ apps, labels }: { apps: AppCard[]; labels: Labels }) {
         ))}
       </ul>
 
-      <Modal open={Boolean(app)} onClose={() => setOpenId(null)} label={app?.name ?? ""} closeLabel={labels.close} size="xl">
+      <Modal open={Boolean(app)} onClose={() => setQueryParams({ app: null, screen: null })} label={app?.name ?? ""} closeLabel={labels.close} size="xl">
         {app && (
           <div className="flex h-full flex-col md:flex-row">
             <div className="min-h-0 flex-1 bg-wash max-md:basis-[68%]">

@@ -1,10 +1,11 @@
-import type { Resume } from "./schema";
+import { resumeSchema, type Resume } from "./schema";
+import type { z } from "zod";
 
 /**
- * Starting content, taken from Surasak's 2026 global resumes (EN + TH).
- * Shown until something is published from /admin, which then owns the data.
+ * Surasak's resume as it shipped in the single-person version (from the 2026 EN/TH resumes).
+ * Used only as a fallback when importing that version's data finds nothing published.
  */
-export const defaultResume: Resume = {
+const seed: z.input<typeof resumeSchema> = {
   version: 2,
   profile: {
     name: { en: "Surasak Jaroensiri", th: "สุรศักดิ์ เจริญศิริ" },
@@ -271,3 +272,5 @@ export const defaultResume: Resume = {
   sections: { about: true, experience: true, apps: true, gallery: true, photos: true, skills: true, education: true, contact: true },
   updatedAt: "",
 };
+
+export const defaultResume: Resume = resumeSchema.parse(seed);

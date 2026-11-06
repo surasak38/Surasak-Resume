@@ -4,6 +4,12 @@ export const defaultLocale: Locale = "en";
 
 export const isLocale = (value: string): value is Locale => (locales as readonly string[]).includes(value);
 
+/** ?lang= wins; otherwise Thai when the browser prefers it, else English. */
+export function pickLocale(param: string | undefined | null, acceptLanguage?: string | null): Locale {
+  if (param && isLocale(param)) return param;
+  return /^\s*th\b/i.test(acceptLanguage ?? "") ? "th" : defaultLocale;
+}
+
 export type Localized = { en: string; th: string };
 export type LocalizedList = { en: string[]; th: string[] };
 
@@ -40,6 +46,7 @@ export function formatPeriod(start: string, end: string, lang: Locale) {
 export const dict = {
   en: {
     switchTo: "ภาษาไทย",
+    madeWith: "Make a resume like this",
     switchToShort: "TH",
     nav: { about: "About", experience: "Experience", apps: "Apps", gallery: "Certificates", photos: "Gallery", skills: "Skills", contact: "Contact" },
     photos: "Gallery",
@@ -79,6 +86,7 @@ export const dict = {
   },
   th: {
     switchTo: "English",
+    madeWith: "สร้าง resume แบบนี้ของคุณเอง",
     switchToShort: "EN",
     nav: { about: "เกี่ยวกับ", experience: "ประสบการณ์", apps: "แอป", gallery: "ใบรับรอง", photos: "แกลเลอรี", skills: "ทักษะ", contact: "ติดต่อ" },
     photos: "แกลเลอรี",

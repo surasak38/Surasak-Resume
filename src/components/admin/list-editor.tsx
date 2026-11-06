@@ -12,14 +12,30 @@ type Props<T extends { id: string }> = {
   subtitle?: (item: T) => string;
   children: (item: T, set: (patch: Partial<T>) => void) => React.ReactNode;
   emptyText: string;
+  /** Show the "include in one-page resume" toggle (items carry a boolean `pdf`). */
+  pdfToggle?: boolean;
 };
+
+function PdfIcon({ on }: { on: boolean }) {
+  return (
+    <svg viewBox="0 0 16 16" className="size-4" aria-hidden>
+      <path d="M4 1.5h5.5L12.5 4.5v10h-8.5zM9.5 1.5v3h3" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+      {on ? (
+        <path d="M6 8h4.5M6 10.3h4.5M6 12.5h3" stroke="currentColor" strokeWidth="1.2" />
+      ) : (
+        <path d="M2 2l12 12" stroke="currentColor" strokeWidth="1.4" />
+      )}
+    </svg>
+  );
+}
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
 const iconBtn =
   "grid size-8 place-items-center rounded-md border border-transparent text-muted transition-colors hover:border-rule hover:text-ink disabled:pointer-events-none disabled:opacity-30";
 
-export function ListEditor<T extends { id: string }>({ items, onChange, create, addLabel, title, subtitle, children, emptyText }: Props<T>) {
+export function ListEditor<T extends { id: string }>({ items, onChange, create, addLabel, title, subtitle, children, emptyText, pdfToggle = false }: Props<T>) {
+  const inPdf = (item: T) => (item as { pdf?: boolean }).pdf !== false;
   const set = (id: string, patch: Partial<T>) => onChange(items.map((it) => (it.id === id ? { ...it, ...patch } : it)));
   const move = (index: number, dir: -1 | 1) => {
     const next = [...items];
@@ -68,7 +84,12 @@ export function ListEditor<T extends { id: string }>({ items, onChange, create, 
                 </svg>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium">{title(item) || "Untitled"}</span>
-                  {subtitle?.(item) && <span className="block truncate text-xs text-muted">{subtitle(item)}</span>}
+                  {(subtitle?.(item) || (pdfToggle && !inPdf(item))) && (
+                    <span className="block truncate text-xs text-muted">
+                      {pdfToggle && !inPdf(item) && <span className="mr-1.5 rounded border border-rule px-1 py-px text-[10px]">Not in PDF</span>}
+                      {subtitle?.(item)}
+                    </span>
+                  )}
                 </span>
               </button>
               <button type="button" className={iconBtn} disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up">
@@ -77,6 +98,18 @@ export function ListEditor<T extends { id: string }>({ items, onChange, create, 
               <button type="button" className={iconBtn} disabled={i === items.length - 1} onClick={() => move(i, 1)} aria-label="Move down">
                 ↓
               </button>
+              {pdfToggle && (
+                <button
+                  type="button"
+                  className={`${iconBtn} ${inPdf(item) ? "" : "!border-rule !text-ink"}`}
+                  onClick={() => set(item.id, { pdf: !inPdf(item) } as unknown as Partial<T>)}
+                  aria-pressed={!inPdf(item)}
+                  aria-label={inPdf(item) ? "Included in one-page resume. Select to leave it out." : "Left out of one-page resume. Select to include it."}
+                  title={inPdf(item) ? "In one-page resume" : "Not in one-page resume"}
+                >
+                  <PdfIcon on={inPdf(item)} />
+                </button>
+              )}
               <button type="button" className={iconBtn} onClick={() => remove(item)} aria-label="Delete">
                 <svg viewBox="0 0 16 16" className="size-4" aria-hidden>
                   <path d="M3 4.5h10M6.5 4.5V3h3v1.5M5 4.5l.5 8.5h5l.5-8.5" fill="none" stroke="currentColor" strokeWidth="1.3" />

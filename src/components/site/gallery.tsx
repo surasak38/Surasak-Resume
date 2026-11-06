@@ -1,7 +1,8 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useQueryParam } from "@/lib/use-query-param";
 import { Modal } from "./modal";
 
 export type GalleryCard = {
@@ -19,8 +20,12 @@ export type GalleryCard = {
 type Labels = { all: string; close: string; viewFile: string; verify: string };
 
 export function Gallery({ items, kinds, labels }: { items: GalleryCard[]; kinds: { key: string; label: string }[]; labels: Labels }) {
-  const [filter, setFilter] = useState("all");
-  const [openId, setOpenId] = useState<string | null>(null);
+  // ?certs=<kind> filters the grid; ?cert=<id> opens one item.
+  const [filterParam, setFilterParam] = useQueryParam("certs");
+  const filter = filterParam ?? "all";
+  const setFilter = (k: string) => setFilterParam(k === "all" ? null : k);
+  const [openId, setOpenIdParam] = useQueryParam("cert");
+  const setOpenId = (id: string | null) => setOpenIdParam(id, { push: id !== null });
   const visible = useMemo(() => (filter === "all" ? items : items.filter((i) => i.kind === filter)), [items, filter]);
   const usedKinds = kinds.filter((k) => items.some((i) => i.kind === k.key));
   const open = items.find((i) => i.id === openId) ?? null;

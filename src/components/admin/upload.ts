@@ -1,9 +1,17 @@
 "use client";
 
-const MAX_EDGE = 2000;
-const MAX_BYTES = 4 * 1024 * 1024;
+import { createContext, useContext } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { MEDIA_BUCKET } from "@/lib/supabase/env";
 
-/** Shrinks photos in the browser so uploads stay small and under the server's 4 MB limit. */
+const MAX_EDGE = 2000;
+const MAX_BYTES = 5 * 1024 * 1024;
+
+/** The signed-in user's id; uploads go into storage/media/<id>/… which their policy allows. */
+export const UploadOwner = createContext("");
+export const useUploadOwner = () => useContext(UploadOwner);
+
+/** Shrinks photos in the browser so uploads stay small. */
 async function shrinkImage(file: File): Promise<Blob> {
   if (file.type === "image/gif") return file;
   const bitmap = await createImageBitmap(file).catch(() => null);
@@ -18,16 +26,20 @@ async function shrinkImage(file: File): Promise<Blob> {
   return out && out.size < file.size ? out : file;
 }
 
-export async function uploadFile(file: File): Promise<string> {
+const EXT: Record<string, string> = { "image/webp": "webp", "image/jpeg": "jpg", "image/png": "png", "image/gif": "gif", "application/pdf": "pdf" };
+
+export async function uploadFile(file: File, ownerId: string): Promise<string> {
+  if (!ownerId) throw new Error("Sign in again to upload.");
   const isPdf = file.type === "application/pdf";
   if (!isPdf && !file.type.startsWith("image/")) throw new Error("Choose an image (JPG, PNG, WebP, GIF) or a PDF.");
   const body = isPdf ? file : await shrinkImage(file);
-  if (body.size > MAX_BYTES) throw new Error(isPdf ? "PDFs must be 4 MB or smaller." : "This image is still over 4 MB after resizing.");
+  const type = body.type || file.type;
+  if (!EXT[type]) throw new Error("Upload a JPG, PNG, WebP, GIF or PDF file.");
+  if (body.size > MAX_BYTES) throw new Error(isPdf ? "PDFs must be 5 MB or smaller." : "This image is still over 5 MB after resizing.");
 
-  const form = new FormData();
-  form.append("file", body, file.name);
-  const res = await fetch("/api/upload", { method: "POST", body: form });
-  const json = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
-  if (!res.ok || !json.url) throw new Error(json.error ?? `Upload failed (${res.status}).`);
-  return json.url;
+  const path = `${ownerId}/${new Date().toISOString().slice(0, 7)}/${crypto.randomUUID()}.${EXT[type]}`;
+  const storage = createClient().storage.from(MEDIA_BUCKET);
+  const { error } = await storage.upload(path, body, { contentType: type, cacheControl: "31536000", upsert: false });
+  if (error) throw new Error(`Upload failed: ${error.message}`);
+  return storage.getPublicUrl(path).data.publicUrl;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { formatPeriod, formatPoint, tr, trList, type Locale } from "@/lib/i18n";
 import type { GalleryKind, Resume } from "@/lib/schema";
@@ -241,8 +241,32 @@ function Sheet({ data, lang, parts }: { data: Resume; lang: Locale; parts: Recor
   );
 }
 
-export function ResumePdf({ data, onClose }: { data: Resume; onClose: () => void }) {
-  const [lang, setLang] = useState<Locale>("en");
+/** Drops list items the owner switched off for the one-page resume. */
+function forPdf(data: Resume): Resume {
+  return {
+    ...data,
+    experience: data.experience.filter((i) => i.pdf),
+    apps: data.apps.filter((i) => i.pdf),
+    gallery: data.gallery.filter((i) => i.pdf),
+    skills: data.skills.filter((i) => i.pdf),
+    education: data.education.filter((i) => i.pdf),
+    spokenLanguages: data.spokenLanguages.filter((i) => i.pdf),
+  };
+}
+
+export function ResumePdf({
+  data: all,
+  lang,
+  onLangChange,
+  onClose,
+}: {
+  data: Resume;
+  lang: Locale;
+  onLangChange: (lang: Locale) => void;
+  onClose: () => void;
+}) {
+  const data = useMemo(() => forPdf(all), [all]);
+  const setLang = onLangChange;
   const [parts, setParts] = useState<Record<Part, boolean>>({
     summary: true,
     experience: true,

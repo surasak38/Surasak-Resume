@@ -1,10 +1,14 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
+import NextLink from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { logout, saveResume } from "@/app/admin/actions";
+import { saveResume } from "@/app/[handle]/admin/actions";
+import { signOut } from "@/app/auth/actions";
+import { useQueryParam } from "@/lib/use-query-param";
 import { ThemeToggle } from "@/components/site/theme-toggle";
 import { formatPeriod, tr } from "@/lib/i18n";
+import { SITE_NAME } from "@/lib/site";
 import {
   galleryKinds,
   resumeSchema,
@@ -24,6 +28,8 @@ import {
 import { FileField, LocalizedField, ScreensField, LocalizedLines, SelectField, TagsField, TextField, Toggle } from "./fields";
 import { ListEditor } from "./list-editor";
 import { ResumePdf } from "./resume-pdf";
+import { Settings } from "./settings";
+import { UploadOwner } from "./upload";
 
 const tabs = [
   { key: "profile", label: "Profile" },
@@ -35,6 +41,7 @@ const tabs = [
   { key: "education", label: "Education" },
   { key: "links", label: "Links" },
   { key: "sections", label: "Visibility" },
+  { key: "settings", label: "Link & account" },
   { key: "backup", label: "Backup" },
 ] as const;
 type Tab = (typeof tabs)[number]["key"];
@@ -70,14 +77,21 @@ const label = (v: { en: string; th: string }) => tr(v, "en");
 
 type Status = { kind: "idle" } | { kind: "saved"; at: string } | { kind: "error"; message: string };
 
-export function Editor({ initial, storage }: { initial: Resume; storage: string }) {
+type EditorProps = { initial: Resume; handle: string; userId: string; email: string; isPublic: boolean; legacyImport: boolean };
+
+export function Editor({ initial, handle, userId, email, isPublic, legacyImport }: EditorProps) {
   const [data, setData] = useState(initial);
   const [saved, setSaved] = useState(() => JSON.stringify(initial));
-  const [tab, setTab] = useState<Tab>("profile");
+  // ?tab=<key> selects a tab, so each one has its own link.
+  const [tabParam, setTabParam] = useQueryParam("tab");
+  const tab: Tab = tabs.some((t) => t.key === tabParam) ? (tabParam as Tab) : "profile";
+  const setTab = (key: Tab) => setTabParam(key === "profile" ? null : key);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [pending, startTransition] = useTransition();
   const [formKey, setFormKey] = useState(0);
-  const [pdfOpen, setPdfOpen] = useState(false);
+  // ?pdf=en|th opens the one-page export in that language.
+  const [pdfParam, setPdfParam] = useQueryParam("pdf");
+  const pdfLang = pdfParam === "th" ? "th" : pdfParam === "en" ? "en" : null;
 
   const dirty = useMemo(() => JSON.stringify(data) !== saved, [data, saved]);
 
@@ -123,12 +137,15 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
   const profile = (p: Partial<Resume["profile"]>) => patch("profile", { ...data.profile, ...p });
 
   return (
+    <UploadOwner.Provider value={userId}>
     <div className="min-h-dvh">
       <header className="sticky top-0 z-30 border-b border-rule bg-paper/85 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 md:px-8">
-          <span className="font-display text-lg font-bold tracking-tight">Resume admin</span>
-          <span className="hidden rounded-full border border-rule px-2 py-0.5 text-xs text-muted sm:inline" title="Where your data is stored">
-            {{ redis: "Redis", blob: "Vercel Blob", file: "Local file" }[storage] ?? storage}
+          <NextLink href="/" className="font-display text-lg font-bold tracking-tight">
+            {SITE_NAME}
+          </NextLink>
+          <span className="hidden truncate rounded-full border border-rule px-2.5 py-0.5 text-xs text-muted sm:inline" title="Your public link">
+            /{handle}
           </span>
           <div className="ml-auto flex items-center gap-1 sm:gap-3">
             <AnimatePresence mode="wait">
@@ -144,7 +161,7 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
             </AnimatePresence>
             <button
               type="button"
-              onClick={() => setPdfOpen(true)}
+              onClick={() => setPdfParam("en", { push: true })}
               className="flex items-center gap-1.5 rounded-md border border-rule px-3 py-2 text-sm transition-colors hover:border-ink"
               title="Build a one-page A4 resume and save it as PDF"
             >
@@ -153,10 +170,10 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
               </svg>
               Export PDF
             </button>
-            <a href="/en" target="_blank" className="rounded-md px-2 py-2 text-sm text-muted transition-colors hover:text-ink">
+            <a href={`/${handle}/profile?lang=en`} target="_blank" className="rounded-md px-2 py-2 text-sm text-muted transition-colors hover:text-ink">
               View EN
             </a>
-            <a href="/th" target="_blank" className="rounded-md px-2 py-2 text-sm text-muted transition-colors hover:text-ink">
+            <a href={`/${handle}/profile?lang=th`} target="_blank" className="rounded-md px-2 py-2 text-sm text-muted transition-colors hover:text-ink">
               TH
             </a>
             <ThemeToggle />
@@ -171,7 +188,7 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
         </div>
       </header>
 
-      {pdfOpen && <ResumePdf data={data} onClose={() => setPdfOpen(false)} />}
+      {pdfLang && <ResumePdf data={data} lang={pdfLang} onLangChange={(l) => setPdfParam(l)} onClose={() => setPdfParam(null)} />}
 
       <AnimatePresence>
         {status.kind === "error" && (
@@ -197,7 +214,7 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
               </li>
             ))}
             <li className="md:mt-6">
-              <form action={logout}>
+              <form action={signOut}>
                 <button className="whitespace-nowrap px-3 py-2 text-sm text-muted transition-colors hover:text-ink">Sign out</button>
               </form>
             </li>
@@ -241,9 +258,10 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
             {tab === "experience" && (
               <Panel title="Experience" description="Newest first. Leave the end date empty for your current role.">
                 <ListEditor<Experience>
+                  pdfToggle
                   items={data.experience}
                   onChange={(v) => patch("experience", v)}
-                  create={() => ({ role: empty(), company: empty(), location: empty(), start: "", end: "", description: empty(), highlights: { en: [], th: [] } })}
+                  create={() => ({ role: empty(), company: empty(), location: empty(), start: "", end: "", description: empty(), highlights: { en: [], th: [] }, pdf: true })}
                   addLabel="Add a role"
                   emptyText="No roles yet. Add your most recent one."
                   title={(e) => [label(e.role), label(e.company)].filter(Boolean).join(" at ")}
@@ -267,9 +285,10 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
             {tab === "apps" && (
               <Panel title="Apps" description="Apps you've built. Visitors see a card for each; selecting it opens the screenshots.">
                 <ListEditor<App>
+                  pdfToggle
                   items={data.apps}
                   onChange={(v) => patch("apps", v)}
-                  create={() => ({ name: "", year: "", platform: "", tagline: empty(), description: empty(), tags: [], url: "", repoUrl: "", icon: "", frame: "auto", screenshots: [] })}
+                  create={() => ({ name: "", year: "", platform: "", tagline: empty(), description: empty(), tags: [], url: "", repoUrl: "", icon: "", frame: "auto", screenshots: [], pdf: true })}
                   addLabel="Add an app"
                   emptyText="No apps yet."
                   title={(a) => a.name}
@@ -305,9 +324,10 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
             {tab === "gallery" && (
               <Panel title="Certificates & activities" description="Certificates, training, competitions and event photos. Upload a scan or photo, and optionally the original PDF.">
                 <ListEditor<GalleryItem>
+                  pdfToggle
                   items={data.gallery}
                   onChange={(v) => patch("gallery", v)}
-                  create={() => ({ kind: "certificate", title: empty(), issuer: empty(), date: "", image: "", file: "", url: "" })}
+                  create={() => ({ kind: "certificate", title: empty(), issuer: empty(), date: "", image: "", file: "", url: "", pdf: true })}
                   addLabel="Add a certificate or activity"
                   emptyText="Nothing here yet."
                   title={(g) => label(g.title)}
@@ -347,9 +367,10 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
             {tab === "skills" && (
               <Panel title="Skills & languages" description="Group related skills together. Skill names are the same in both languages.">
                 <ListEditor<SkillGroup>
+                  pdfToggle
                   items={data.skills}
                   onChange={(v) => patch("skills", v)}
-                  create={() => ({ group: empty(), items: [] })}
+                  create={() => ({ group: empty(), items: [], pdf: true })}
                   addLabel="Add a skill group"
                   emptyText="No skill groups yet."
                   title={(g) => label(g.group)}
@@ -367,9 +388,10 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
                   Languages you speak
                 </h2>
                 <ListEditor<SpokenLanguage>
+                  pdfToggle
                   items={data.spokenLanguages}
                   onChange={(v) => patch("spokenLanguages", v)}
-                  create={() => ({ name: empty(), level: empty() })}
+                  create={() => ({ name: empty(), level: empty(), pdf: true })}
                   addLabel="Add a language"
                   emptyText="No languages yet."
                   title={(l) => label(l.name)}
@@ -388,9 +410,10 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
             {tab === "education" && (
               <Panel title="Education" description="Degrees and courses.">
                 <ListEditor<Education>
+                  pdfToggle
                   items={data.education}
                   onChange={(v) => patch("education", v)}
-                  create={() => ({ school: empty(), degree: empty(), start: "", end: "", note: empty() })}
+                  create={() => ({ school: empty(), degree: empty(), start: "", end: "", note: empty(), pdf: true })}
                   addLabel="Add education"
                   emptyText="Nothing here yet."
                   title={(e) => label(e.school)}
@@ -440,6 +463,21 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
               </Panel>
             )}
 
+            {tab === "settings" && (
+              <Settings
+                handle={handle}
+                email={email}
+                isPublic={isPublic}
+                legacyImport={legacyImport}
+                onImported={(next) => {
+                  setData(next);
+                  setFormKey((k) => k + 1);
+                  setStatus({ kind: "idle" });
+                  setTab("profile");
+                }}
+              />
+            )}
+
             {tab === "backup" && (
               <Backup
                 data={data}
@@ -454,6 +492,7 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
         </AnimatePresence>
       </div>
     </div>
+    </UploadOwner.Provider>
   );
 }
 

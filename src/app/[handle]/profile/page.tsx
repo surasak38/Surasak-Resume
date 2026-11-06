@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { Apps } from "@/components/site/apps";
 import { Gallery } from "@/components/site/gallery";
 import { Hero } from "@/components/site/hero";
@@ -8,32 +10,60 @@ import { Photos } from "@/components/site/photos";
 import { Section } from "@/components/site/section";
 import { ThemeToggle } from "@/components/site/theme-toggle";
 import { Timeline } from "@/components/site/timeline";
-import { dict, formatPeriod, formatPoint, isLocale, tr, trList, type Locale } from "@/lib/i18n";
-import { getResume } from "@/lib/resume";
+import { dict, formatPeriod, formatPoint, pickLocale, tr, trList, type Locale } from "@/lib/i18n";
+import { getPublicProfile } from "@/lib/profiles";
 import { galleryKinds } from "@/lib/schema";
 
-export async function generateMetadata({ params }: PageProps<"/[lang]">): Promise<Metadata> {
-  const { lang } = await params;
-  if (!isLocale(lang)) return {};
-  const { profile } = await getResume();
+type Props = PageProps<"/[handle]/profile">;
+
+async function resolveLang(searchParams: Props["searchParams"]): Promise<Locale> {
+  const sp = await searchParams;
+  return pickLocale(typeof sp.lang === "string" ? sp.lang : undefined, (await headers()).get("accept-language"));
+}
+
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
+  const { handle } = await params;
+  const found = await getPublicProfile(handle);
+  // The page streams, so a missing profile still answers 200; keep it out of search results.
+  if (!found) return { title: "Profile not found", robots: { index: false, follow: false } };
+  const lang = await resolveLang(searchParams);
+  const { profile } = found.data;
   const name = tr(profile.name, lang);
   const headline = tr(profile.headline, lang);
   return {
     title: headline ? `${name} — ${headline}` : name,
     description: tr(profile.summary, lang).split("\n")[0] || headline,
-    alternates: { languages: { en: "/en", th: "/th" } },
-    openGraph: { title: name, description: headline, locale: lang === "th" ? "th_TH" : "en_US", type: "profile" },
+    alternates: {
+      canonical: `/${handle}/profile?lang=${lang}`,
+      languages: { en: `/${handle}/profile?lang=en`, th: `/${handle}/profile?lang=th` },
+    },
+    openGraph: {
+      title: name,
+      description: headline,
+      locale: lang === "th" ? "th_TH" : "en_US",
+      type: "profile",
+      images: profile.photo ? [profile.photo] : undefined,
+    },
   };
 }
 
-export default async function Home({ params }: PageProps<"/[lang]">) {
-  const { lang: raw } = await params;
-  if (!isLocale(raw)) notFound();
-  const lang: Locale = raw;
+export default function ProfilePage(props: Props) {
+  return (
+    <Suspense fallback={<div className="min-h-dvh" />}>
+      <ProfileView {...props} />
+    </Suspense>
+  );
+}
+
+async function ProfileView({ params, searchParams }: Props) {
+  const { handle } = await params;
+  const found = await getPublicProfile(handle);
+  if (!found) notFound();
+  const lang = await resolveLang(searchParams);
   const t = dict[lang];
   const other: Locale = lang === "en" ? "th" : "en";
 
-  const data = await getResume();
+  const data = found.data;
   const { profile, sections } = data;
   const name = tr(profile.name, lang);
   const altName = profile.name[other] && profile.name[other] !== name ? profile.name[other] : "";
@@ -85,7 +115,7 @@ export default async function Home({ params }: PageProps<"/[lang]">) {
               ))}
             </ul>
             <Link
-              href={`/${other}`}
+              href={`/${handle}/profile?lang=${other}`}
               hrefLang={other}
               lang={other}
               className="grid h-9 min-w-9 place-items-center rounded-full border border-rule px-2.5 text-xs font-medium transition-colors hover:border-ink"
@@ -294,6 +324,9 @@ export default async function Home({ params }: PageProps<"/[lang]">) {
       <footer className="mx-auto max-w-6xl px-4 md:px-8">
         <div className="flex flex-wrap justify-between gap-2 border-t border-rule py-8 text-xs text-muted">
           <span>© {name}</span>
+          <Link href={`/?lang=${lang}`} className="underline-offset-4 hover:text-ink hover:underline">
+            {t.madeWith}
+          </Link>
           {data.updatedAt && (
             <span className="tabular">
               {t.updated}{" "}
