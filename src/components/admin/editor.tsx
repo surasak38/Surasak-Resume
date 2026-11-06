@@ -7,6 +7,7 @@ import { saveResume } from "@/app/[handle]/admin/actions";
 import { signOut } from "@/app/auth/actions";
 import { useQueryParam } from "@/lib/use-query-param";
 import { ThemeToggle } from "@/components/site/theme-toggle";
+import { aiPrompt, droppedMedia, parsePasted, summarizeChanges, toMarkdown, type Change } from "@/lib/ai-export";
 import { formatPeriod, tr } from "@/lib/i18n";
 import { SITE_NAME } from "@/lib/site";
 import {
@@ -42,7 +43,7 @@ const tabs = [
   { key: "links", label: "Links" },
   { key: "sections", label: "Visibility" },
   { key: "settings", label: "Link & account" },
-  { key: "backup", label: "Backup" },
+  { key: "backup", label: "Backup & AI" },
 ] as const;
 type Tab = (typeof tabs)[number]["key"];
 
@@ -523,8 +524,37 @@ function Panel({ title, description, children }: { title: string; description: s
   );
 }
 
+async function copyText(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // Older Safari: fall back to a hidden textarea.
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    const ok = document.execCommand("copy");
+    area.remove();
+    return ok;
+  }
+}
+
 function Backup({ data, onImport }: { data: Resume; onImport: (d: Resume) => void }) {
   const [error, setError] = useState("");
+  const [copied, setCopied] = useState("");
+  const [includeContact, setIncludeContact] = useState(false);
+  const [pasted, setPasted] = useState("");
+  const [pasteError, setPasteError] = useState("");
+  const [preview, setPreview] = useState<{ data: Resume; changes: Change[]; dropped: number } | null>(null);
+
+  const flash = async (key: string, text: string) => {
+    const ok = await copyText(text);
+    setCopied(ok ? key : "");
+    if (ok) setTimeout(() => setCopied((c) => (c === key ? "" : c)), 2500);
+  };
 
   const download = () => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -549,23 +579,150 @@ function Backup({ data, onImport }: { data: Resume; onImport: (d: Resume) => voi
     }
   };
 
+  const check = () => {
+    setPreview(null);
+    const res = parsePasted(pasted, data);
+    if (!res.ok) return setPasteError(res.error);
+    setPasteError("");
+    setPreview({ data: res.data, changes: summarizeChanges(data, res.data), dropped: droppedMedia(data, res.data) });
+  };
+
+  const apply = () => {
+    if (!preview) return;
+    onImport(preview.data);
+    setPreview(null);
+    setPasted("");
+  };
+
+  const btn = "rounded-md border px-4 py-2 text-sm font-medium transition-colors";
+  const label = (key: string, text: string) => (copied === key ? "Copied" : text);
+
   return (
-    <Panel title="Backup" description="Download all text as one JSON file, or load a file to replace what's in the editor. Uploaded images stay in storage and are referenced by link.">
-      <div className="flex flex-wrap gap-3">
-        <button onClick={download} className="rounded-md border border-ink px-4 py-2 text-sm font-medium">
-          Download JSON
-        </button>
-        <label className="cursor-pointer rounded-md border border-rule px-4 py-2 text-sm transition-colors hover:border-ink">
-          Load from file
-          <input type="file" accept="application/json" className="sr-only" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
+    <Panel title="Backup & AI" description="Copy your resume for an AI assistant, paste back what it returns, or keep a JSON backup.">
+      <section>
+        <h2 className="font-display text-2xl font-semibold tracking-tight" style={{ fontVariationSettings: '"wdth" 80' }}>
+          Update with an AI assistant
+        </h2>
+        <ol className="mt-3 max-w-[70ch] list-decimal space-y-1 pl-5 text-sm text-muted">
+          <li>Copy for AI, paste it into ChatGPT, Claude or another assistant, and write what you want changed where the text says.</li>
+          <li>Copy the JSON it replies with, paste it below and check the changes.</li>
+          <li>Apply, review the tabs, then Publish.</li>
+        </ol>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button type="button" onClick={() => flash("ai", aiPrompt(data, { includeContact }))} className={`${btn} border-ink bg-ink text-paper`}>
+            {label("ai", "Copy for AI")}
+          </button>
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <input type="checkbox" checked={includeContact} onChange={(e) => setIncludeContact(e.target.checked)} className="size-4 accent-current" />
+            Include email and phone
+          </label>
+        </div>
+        <p className="mt-2 text-xs text-muted">Left out by default so your contact details aren&apos;t shared with the assistant. They are kept when you paste the result back.</p>
+
+        <label htmlFor="ai-paste" className="mt-6 block text-sm font-medium">
+          Paste the assistant&apos;s reply
         </label>
-      </div>
-      <p className="mt-4 text-sm text-muted">Loading a file only changes the editor. Press Publish to make it live.</p>
-      {error && (
-        <p role="alert" className="mt-4 text-sm">
-          {error}
-        </p>
-      )}
+        <textarea
+          id="ai-paste"
+          rows={6}
+          value={pasted}
+          onChange={(e) => {
+            setPasted(e.target.value);
+            setPreview(null);
+          }}
+          placeholder="Paste the whole reply or just the ```json block"
+          className="mt-1.5 block w-full resize-y rounded-md border border-rule bg-paper px-3 py-2 font-mono text-xs leading-relaxed outline-none transition-colors focus:border-ink"
+        />
+        <div className="mt-3 flex flex-wrap gap-3">
+          <button type="button" disabled={!pasted.trim()} onClick={check} className={`${btn} border-ink disabled:opacity-40`}>
+            Check changes
+          </button>
+        </div>
+        {pasteError && (
+          <p role="alert" className="mt-3 text-sm">
+            {pasteError}
+          </p>
+        )}
+
+        {preview && (
+          <div role="status" className="mt-4 rounded-lg border border-ink p-4">
+            {preview.changes.length === 0 ? (
+              <p className="text-sm">No changes found. The pasted resume is the same as the one in the editor.</p>
+            ) : (
+              <>
+                <p className="text-sm font-medium">These changes will be loaded into the editor:</p>
+                <ul className="mt-2 space-y-1.5 text-sm">
+                  {preview.changes.map((c) => (
+                    <li key={c.section}>
+                      <span className="font-medium">{c.section}:</span>{" "}
+                      {[
+                        c.added.length && `added ${c.added.join(", ")}`,
+                        c.removed.length && `removed ${c.removed.join(", ")}`,
+                        c.changed.length && `changed ${c.changed.join(", ")}`,
+                      ]
+                        .filter(Boolean)
+                        .join("; ")}
+                    </li>
+                  ))}
+                </ul>
+                {preview.dropped > 0 && (
+                  <p className="mt-3 rounded-md bg-wash p-2 text-sm">
+                    Warning: {preview.dropped} image or file link{preview.dropped === 1 ? " is" : "s are"} missing from the pasted version. Those photos or files would disappear from your page.
+                  </p>
+                )}
+              </>
+            )}
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button type="button" disabled={!preview.changes.length} onClick={apply} className={`${btn} border-ink bg-ink text-paper disabled:opacity-40`}>
+                Apply to editor
+              </button>
+              <button type="button" onClick={() => setPreview(null)} className={`${btn} border-rule`}>
+                Cancel
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-muted">Applying only changes the editor. Nothing is published until you press Publish.</p>
+          </div>
+        )}
+      </section>
+
+      <section className="mt-12 border-t border-rule pt-8">
+        <h2 className="font-display text-2xl font-semibold tracking-tight" style={{ fontVariationSettings: '"wdth" 80' }}>
+          Copy as text
+        </h2>
+        <p className="mt-1 max-w-[70ch] text-sm text-muted">Your resume as Markdown, for job application forms, LinkedIn or notes.</p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button type="button" onClick={() => flash("md-en", toMarkdown(data, "en"))} className={`${btn} border-rule hover:border-ink`}>
+            {label("md-en", "Copy Markdown (English)")}
+          </button>
+          <button type="button" onClick={() => flash("md-th", toMarkdown(data, "th"))} className={`${btn} border-rule hover:border-ink`}>
+            {label("md-th", "Copy Markdown (ไทย)")}
+          </button>
+          <button type="button" onClick={() => flash("json", JSON.stringify(data, null, 2))} className={`${btn} border-rule hover:border-ink`}>
+            {label("json", "Copy JSON")}
+          </button>
+        </div>
+      </section>
+
+      <section className="mt-12 border-t border-rule pt-8">
+        <h2 className="font-display text-2xl font-semibold tracking-tight" style={{ fontVariationSettings: '"wdth" 80' }}>
+          JSON backup file
+        </h2>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button onClick={download} className={`${btn} border-ink`}>
+            Download JSON
+          </button>
+          <label className="cursor-pointer rounded-md border border-rule px-4 py-2 text-sm transition-colors hover:border-ink">
+            Load from file
+            <input type="file" accept="application/json" className="sr-only" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
+          </label>
+        </div>
+        <p className="mt-3 text-sm text-muted">Uploaded images stay in storage and are referenced by link. Loading a file only changes the editor.</p>
+        {error && (
+          <p role="alert" className="mt-3 text-sm">
+            {error}
+          </p>
+        )}
+      </section>
     </Panel>
   );
 }
