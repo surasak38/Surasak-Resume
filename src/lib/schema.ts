@@ -28,6 +28,8 @@ export const profileSchema = z.object({
   phone: text.default(""),
   /** Show the phone number in the one-page PDF (it stays on the public page either way). */
   phoneInPdf: z.boolean().default(true),
+  /** Show the email address in the one-page PDF (it stays on the public page either way). */
+  emailInPdf: z.boolean().default(true),
   photo: media.default(""),
   resumeFile: z.object({ en: media.default(""), th: media.default("") }).default({ en: "", th: "" }),
   available: z.boolean().default(false),

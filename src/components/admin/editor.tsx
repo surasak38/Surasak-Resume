@@ -249,6 +249,12 @@ export function Editor({ initial, handle, userId, email, isPublic, legacyImport 
                       checked={data.profile.phoneInPdf}
                       onChange={(phoneInPdf) => profile({ phoneInPdf })}
                     />
+                    <Toggle
+                      label="Show email in the one-page PDF"
+                      hint="Turn off to keep your email out of exported resumes. It still shows in Contact on your page."
+                      checked={data.profile.emailInPdf}
+                      onChange={(emailInPdf) => profile({ emailInPdf })}
+                    />
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <FileField label="Resume PDF (English)" accept="pdf" value={data.profile.resumeFile.en} onChange={(en) => profile({ resumeFile: { ...data.profile.resumeFile, en } })} />
