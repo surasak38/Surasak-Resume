@@ -82,3 +82,27 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* One-page resume export: print only the A4 sheet, always black on white. */
+@page {
+  size: A4;
+  margin: 0;
+}
+@media print {
+  html.printing-resume,
+  html.printing-resume body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  html.printing-resume body > :not(#resume-print-root) {
+    display: none !important;
+  }
+  .resume-sheet {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .resume-sheet a {
+    color: inherit;
+    text-decoration: none;
+  }
+}

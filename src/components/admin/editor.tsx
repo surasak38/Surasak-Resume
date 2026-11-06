@@ -23,6 +23,7 @@ import {
 } from "@/lib/schema";
 import { FileField, LocalizedField, ScreensField, LocalizedLines, SelectField, TagsField, TextField, Toggle } from "./fields";
 import { ListEditor } from "./list-editor";
+import { ResumePdf } from "./resume-pdf";
 
 const tabs = [
   { key: "profile", label: "Profile" },
@@ -74,6 +75,7 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [pending, startTransition] = useTransition();
   const [formKey, setFormKey] = useState(0);
+  const [pdfOpen, setPdfOpen] = useState(false);
 
   const dirty = useMemo(() => JSON.stringify(data) !== saved, [data, saved]);
 
@@ -138,6 +140,17 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
                 {status.kind === "error" ? "Not published" : dirty ? "Unpublished changes" : status.kind === "saved" ? `Published at ${status.at}` : "All changes published"}
               </motion.span>
             </AnimatePresence>
+            <button
+              type="button"
+              onClick={() => setPdfOpen(true)}
+              className="flex items-center gap-1.5 rounded-md border border-rule px-3 py-2 text-sm transition-colors hover:border-ink"
+              title="Build a one-page A4 resume and save it as PDF"
+            >
+              <svg viewBox="0 0 16 16" className="size-3.5" aria-hidden>
+                <path d="M4 1.5h5.5L12.5 4.5v10h-8.5zM9.5 1.5v3h3M8 7v5M5.8 9.8L8 12l2.2-2.2" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+              </svg>
+              Export PDF
+            </button>
             <a href="/en" target="_blank" className="rounded-md px-2 py-2 text-sm text-muted transition-colors hover:text-ink">
               View EN
             </a>
@@ -155,6 +168,8 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
           </div>
         </div>
       </header>
+
+      {pdfOpen && <ResumePdf data={data} onClose={() => setPdfOpen(false)} />}
 
       <AnimatePresence>
         {status.kind === "error" && (
