@@ -165,9 +165,10 @@ export default async function Home({ params }: PageProps<"/[lang]">) {
                 url: a.url,
                 repoUrl: a.repoUrl,
                 icon: a.icon,
-                screenshots: a.screenshots,
+                frame: a.frame,
+                screenshots: a.screenshots.map((s) => ({ src: s.src, caption: tr(s.caption, lang) })),
               }))}
-              labels={{ visit: t.visit, source: t.source, close: t.close, previous: t.previous, next: t.next, screen: t.screen }}
+              labels={{ visit: t.visit, source: t.source, close: t.close, previous: t.previous, next: t.next, screen: t.screen, swipeHint: t.swipeHint, noScreens: t.noScreens }}
             />
           </Section>
         )}

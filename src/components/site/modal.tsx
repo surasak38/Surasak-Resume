@@ -13,14 +13,15 @@ export function Modal({
   label,
   closeLabel,
   children,
-  wide = false,
+  size = "md",
 }: {
   open: boolean;
   onClose: () => void;
   label: string;
   closeLabel: string;
   children: React.ReactNode;
-  wide?: boolean;
+  /** md: text, lg: a single large image, xl: a near full-screen viewer with a fixed height. */
+  size?: "md" | "lg" | "xl";
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const reduce = useReducedMotion();
@@ -51,7 +52,11 @@ export function Modal({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12 }}
               transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-              className={`pointer-events-auto relative w-full ${wide ? "max-w-5xl" : "max-w-3xl"} max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-2xl border border-rule bg-paper shadow-2xl sm:max-h-[calc(100dvh-3rem)]`}
+              className={`pointer-events-auto relative w-full overflow-hidden rounded-2xl border border-rule bg-paper shadow-2xl ${
+                size === "xl"
+                  ? "h-[calc(100dvh-1.5rem)] max-w-[1440px] sm:h-[min(calc(100dvh-3rem),980px)]"
+                  : `${size === "lg" ? "max-w-5xl" : "max-w-3xl"} max-h-[calc(100dvh-1.5rem)] overflow-y-auto sm:max-h-[calc(100dvh-3rem)]`
+              }`}
             >
               <button
                 type="button"

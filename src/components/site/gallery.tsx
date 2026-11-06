@@ -96,7 +96,7 @@ export function Gallery({ items, kinds, labels }: { items: GalleryCard[]; kinds:
         </AnimatePresence>
       </motion.ul>
 
-      <Modal open={Boolean(open)} onClose={() => setOpenId(null)} label={open?.title ?? ""} closeLabel={labels.close} wide={Boolean(open?.image)}>
+      <Modal open={Boolean(open)} onClose={() => setOpenId(null)} label={open?.title ?? ""} closeLabel={labels.close} size={open?.image ? "lg" : "md"}>
         {open && (
           <div>
             {open.image && (

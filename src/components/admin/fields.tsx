@@ -271,60 +271,122 @@ export function FileField({
   );
 }
 
-/** Ordered list of images, e.g. app screenshots. */
-export function ImagesField({ value, onChange, ...base }: Base & { value: string[]; onChange: (v: string[]) => void }) {
+type Screen = { src: string; caption: Localized };
+
+/**
+ * App screenshots: upload several at once, reorder by dragging (or with the arrow buttons on touch screens),
+ * and give each one an optional caption in both languages.
+ */
+export function ScreensField({ value, onChange, ...base }: Base & { value: Screen[]; onChange: (v: Screen[]) => void }) {
   const input = useRef<HTMLInputElement>(null);
   // Uploads finish later; append to whatever the list is by then.
   const latest = useRef(value);
   useEffect(() => {
     latest.current = value;
   });
-  const { busy, error, run } = useUploader((urls) => onChange([...latest.current, ...urls]));
-  const move = (i: number, dir: -1 | 1) => {
+  const { busy, error, run } = useUploader((urls) => onChange([...latest.current, ...urls.map((src) => ({ src, caption: { en: "", th: "" } }))]));
+  const [dragFrom, setDragFrom] = useState<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
+
+  const moveTo = (from: number, to: number) => {
+    if (from === to) return;
     const next = [...value];
-    [next[i], next[i + dir]] = [next[i + dir], next[i]];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
     onChange(next);
   };
+  const update = (i: number, patch: Partial<Screen>) => onChange(value.map((s, j) => (j === i ? { ...s, ...patch } : s)));
+  const isFileDrag = (e: React.DragEvent) => e.dataTransfer.types.includes("Files");
 
   return (
     <Shell {...base}>
-      <ol
-        className="flex flex-wrap gap-3"
-        onDragOver={(e) => e.preventDefault()}
+      <div
+        className="rounded-lg border border-dashed border-rule p-2"
+        onDragOver={(e) => isFileDrag(e) && e.preventDefault()}
         onDrop={(e) => {
+          if (!isFileDrag(e)) return;
           e.preventDefault();
-          run(Array.from(e.dataTransfer.files));
+          run(Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/")));
         }}
       >
-        {value.map((src, i) => (
-          <li key={src} className="group relative h-36 w-20 overflow-hidden rounded-md border border-rule bg-wash">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={src} alt={`Screenshot ${i + 1}`} className="size-full object-cover object-top" />
-            <span className="tabular absolute left-1 top-1 rounded bg-paper/90 px-1 text-[10px]">{i + 1}</span>
-            <div className="absolute inset-x-0 bottom-0 flex justify-between bg-paper/90 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-              <button type="button" aria-label="Move earlier" disabled={i === 0} onClick={() => move(i, -1)} className="px-1.5 py-1 text-xs disabled:opacity-30">
-                ←
-              </button>
-              <button type="button" aria-label="Remove" onClick={() => onChange(value.filter((_, j) => j !== i))} className="px-1.5 py-1 text-xs">
-                ✕
-              </button>
-              <button type="button" aria-label="Move later" disabled={i === value.length - 1} onClick={() => move(i, 1)} className="px-1.5 py-1 text-xs disabled:opacity-30">
-                →
-              </button>
-            </div>
-          </li>
-        ))}
-        <li>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => input.current?.click()}
-            className="grid h-36 w-20 place-items-center rounded-md border border-dashed border-rule px-1 text-center text-xs text-muted transition-colors hover:border-ink hover:text-ink"
-          >
-            {busy ? "Uploading…" : "+ Add screens"}
-          </button>
-        </li>
-      </ol>
+        {value.length > 0 && (
+          <ol className="space-y-2">
+            {value.map((shot, i) => (
+              <li
+                key={shot.src}
+                draggable
+                onDragStart={(e) => {
+                  setDragFrom(i);
+                  e.dataTransfer.effectAllowed = "move";
+                }}
+                onDragOver={(e) => {
+                  if (dragFrom === null) return;
+                  e.preventDefault();
+                  setDragOver(i);
+                }}
+                onDrop={(e) => {
+                  if (dragFrom === null) return;
+                  e.preventDefault();
+                  moveTo(dragFrom, i);
+                  setDragFrom(null);
+                  setDragOver(null);
+                }}
+                onDragEnd={() => {
+                  setDragFrom(null);
+                  setDragOver(null);
+                }}
+                className={`flex gap-3 rounded-md border bg-paper p-2 transition-colors ${dragOver === i && dragFrom !== i ? "border-ink" : "border-rule"} ${dragFrom === i ? "opacity-40" : ""}`}
+              >
+                <div className="flex cursor-grab flex-col items-center justify-center gap-1 text-muted active:cursor-grabbing" title="Drag to reorder">
+                  <svg viewBox="0 0 10 16" className="h-4 w-2.5" aria-hidden>
+                    {[3, 8, 13].flatMap((y) => [2, 8].map((x) => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.3" fill="currentColor" />))}
+                  </svg>
+                  <span className="tabular text-[11px]">{i + 1}</span>
+                </div>
+                <a href={shot.src} target="_blank" rel="noreferrer" className="block h-28 w-20 shrink-0 overflow-hidden rounded border border-rule bg-wash" title="Open full size">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={shot.src} alt={`Screen ${i + 1}`} draggable={false} className="size-full object-cover object-top" />
+                </a>
+                <div className="grid min-w-0 flex-1 content-start gap-2">
+                  {(["en", "th"] as const).map((lang) => (
+                    <div key={lang} className="relative">
+                      <LangTag lang={lang} />
+                      <input
+                        aria-label={`Caption for screen ${i + 1} (${lang === "en" ? "English" : "Thai"})`}
+                        lang={lang}
+                        placeholder="Caption (optional)"
+                        value={shot.caption[lang]}
+                        onChange={(e) => update(i, { caption: { ...shot.caption, [lang]: e.target.value } })}
+                        className={`${inputCls} pl-11 text-sm`}
+                      />
+                    </div>
+                  ))}
+                  {i === 0 && <p className="text-xs text-muted">Card image</p>}
+                </div>
+                <div className="flex flex-col gap-1">
+                  <button type="button" aria-label="Move up" disabled={i === 0} onClick={() => moveTo(i, i - 1)} className={`${btn} px-2`}>
+                    ↑
+                  </button>
+                  <button type="button" aria-label="Move down" disabled={i === value.length - 1} onClick={() => moveTo(i, i + 1)} className={`${btn} px-2`}>
+                    ↓
+                  </button>
+                  <button type="button" aria-label="Remove" onClick={() => onChange(value.filter((_, j) => j !== i))} className={`${btn} px-2`}>
+                    ✕
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => input.current?.click()}
+          className={`w-full rounded-md py-4 text-sm text-muted transition-colors hover:text-ink ${value.length ? "mt-2" : ""}`}
+        >
+          {busy ? "Uploading…" : "+ Add screens (or drop images here)"}
+        </button>
+      </div>
       {error && (
         <p role="alert" className="mt-2 text-xs">
           {error}

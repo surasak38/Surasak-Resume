@@ -1,7 +1,8 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useReducedMotion } from "motion/react";
+import { useEffect, useRef, useState } from "react";
+import type { AppFrame } from "@/lib/schema";
 import { Modal } from "./modal";
 
 export type AppCard = {
@@ -15,10 +16,20 @@ export type AppCard = {
   url: string;
   repoUrl: string;
   icon: string;
-  screenshots: string[];
+  frame: AppFrame;
+  screenshots: { src: string; caption: string }[];
 };
 
-type Labels = { visit: string; source: string; close: string; previous: string; next: string; screen: string };
+type Labels = {
+  visit: string;
+  source: string;
+  close: string;
+  previous: string;
+  next: string;
+  screen: string;
+  swipeHint: string;
+  noScreens: string;
+};
 
 function Monogram({ name, className = "" }: { name: string; className?: string }) {
   return (
@@ -33,38 +44,155 @@ function AppIcon({ app, className }: { app: AppCard; className: string }) {
   return app.icon ? <img src={app.icon} alt="" className={`object-cover ${className}`} /> : <Monogram name={app.name} className={className} />;
 }
 
-/** A screenshot shown inside a device-like frame; portrait shots get a phone frame. */
-function Device({ src, alt, eager = false }: { src: string; alt: string; eager?: boolean }) {
-  const [portrait, setPortrait] = useState<boolean | null>(null);
+const FRAMES: Record<Exclude<AppFrame, "auto">, string> = {
+  phone: "rounded-[2rem] border-[8px] border-ink",
+  tablet: "rounded-[1.5rem] border-[12px] border-ink",
+  browser: "rounded-lg border-[5px] border-t-[22px] border-ink",
+  none: "rounded-md",
+};
+
+const arrow = (d: string) => (
+  <svg viewBox="0 0 16 16" className="size-4" aria-hidden>
+    <path d={d} fill="none" stroke="currentColor" strokeWidth="1.6" />
+  </svg>
+);
+
+/** Native scroll-snap slideshow: swipe on touch, two-finger scroll on trackpads, arrows and keys elsewhere. */
+function Slideshow({ app, labels }: { app: AppCard; labels: Labels }) {
+  const shots = app.screenshots;
+  const track = useRef<HTMLDivElement>(null);
+  const [index, setIndex] = useState(0);
+  const [portrait, setPortrait] = useState<Record<number, boolean>>({});
+  const reduce = useReducedMotion();
+
+  useEffect(() => {
+    const el = track.current;
+    if (!el) return;
+    let raf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => setIndex(Math.round(el.scrollLeft / Math.max(el.clientWidth, 1))));
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  const goTo = (i: number) => {
+    const el = track.current;
+    if (!el || !shots.length) return;
+    const n = (i + shots.length) % shots.length;
+    el.scrollTo({ left: n * el.clientWidth, behavior: reduce ? "auto" : "smooth" });
+  };
+  const goRef = useRef(goTo);
+  useEffect(() => {
+    goRef.current = goTo;
+  });
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") goRef.current(index + 1);
+      if (e.key === "ArrowLeft") goRef.current(index - 1);
+    };
+    addEventListener("keydown", onKey);
+    return () => removeEventListener("keydown", onKey);
+  }, [index]);
+
+  if (!shots.length) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-4 text-muted">
+        <AppIcon app={app} className="size-28 rounded-[1.8rem] text-5xl" />
+        <p className="text-sm">{labels.noScreens}</p>
+      </div>
+    );
+  }
+
+  const frameFor = (i: number) => FRAMES[app.frame === "auto" ? (portrait[i] === false ? "browser" : "phone") : app.frame];
+
   return (
-    <div
-      className={`overflow-hidden border-ink bg-paper shadow-[0_30px_60px_-30px_rgba(0,0,0,0.45)] ${
-        portrait === false ? "w-full rounded-xl border-[6px]" : "h-full max-h-full rounded-[1.75rem] border-[7px]"
-      }`}
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={src}
-        alt={alt}
-        loading={eager ? "eager" : "lazy"}
-        onLoad={(e) => setPortrait(e.currentTarget.naturalHeight > e.currentTarget.naturalWidth)}
-        className={portrait === false ? "block w-full" : "block h-full w-auto"}
-      />
+    <div className="flex h-full min-h-0 flex-col" role="region" aria-roledescription="carousel" aria-label={`${app.name}. ${labels.swipeHint}`}>
+      <div className="relative min-h-0 flex-1">
+        <div ref={track} className="no-scrollbar flex h-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain">
+          {shots.map((s, i) => (
+            <figure
+              key={s.src}
+              aria-roledescription="slide"
+              aria-label={`${labels.screen} ${i + 1} / ${shots.length}`}
+              className="flex h-full w-full shrink-0 snap-center snap-always flex-col items-center gap-4 px-5 pb-4 pt-6 sm:px-16 sm:pt-10"
+            >
+              <div className="relative min-h-0 w-full flex-1">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={s.src}
+                  alt={s.caption || `${app.name}, ${labels.screen} ${i + 1}`}
+                  loading={Math.abs(i - index) <= 1 ? "eager" : "lazy"}
+                  draggable={false}
+                  onLoad={(e) => {
+                    const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
+                    setPortrait((p) => ({ ...p, [i]: h >= w }));
+                  }}
+                  className={`absolute inset-0 m-auto block max-h-full max-w-full select-none bg-paper object-contain shadow-[0_30px_60px_-30px_rgba(0,0,0,0.5)] ${frameFor(i)}`}
+                />
+              </div>
+              {s.caption && <figcaption className="max-w-[60ch] text-center text-sm leading-snug text-muted">{s.caption}</figcaption>}
+            </figure>
+          ))}
+        </div>
+
+        {shots.length > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={() => goTo(index - 1)}
+              aria-label={labels.previous}
+              className="absolute left-3 top-1/2 hidden size-11 sm:grid -translate-y-1/2 place-items-center rounded-full border border-rule bg-paper/90 backdrop-blur transition-colors hover:border-ink"
+            >
+              {arrow("M10 3L5 8l5 5")}
+            </button>
+            <button
+              type="button"
+              onClick={() => goTo(index + 1)}
+              aria-label={labels.next}
+              className="absolute right-3 top-1/2 hidden size-11 sm:grid -translate-y-1/2 place-items-center rounded-full border border-rule bg-paper/90 backdrop-blur transition-colors hover:border-ink"
+            >
+              {arrow("M6 3l5 5-5 5")}
+            </button>
+          </>
+        )}
+      </div>
+
+      {shots.length > 1 && (
+        <div className="flex items-center gap-4 border-t border-rule px-4 py-3">
+          <ol className="no-scrollbar flex min-w-0 flex-1 gap-2 overflow-x-auto">
+            {shots.map((s, i) => (
+              <li key={s.src} className="shrink-0">
+                <button
+                  type="button"
+                  onClick={() => goTo(i)}
+                  aria-label={`${labels.screen} ${i + 1}`}
+                  aria-current={i === index}
+                  className={`block h-14 w-14 overflow-hidden rounded-md border-2 transition-all duration-300 ${i === index ? "border-ink" : "border-transparent opacity-45 hover:opacity-100"}`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={s.src} alt="" loading="lazy" className="size-full object-cover object-top" />
+                </button>
+              </li>
+            ))}
+          </ol>
+          <span className="tabular shrink-0 text-sm text-muted" aria-live="polite">
+            {index + 1} / {shots.length}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
 
 export function Apps({ apps, labels }: { apps: AppCard[]; labels: Labels }) {
   const [openId, setOpenId] = useState<string | null>(null);
-  const [index, setIndex] = useState(0);
   const app = apps.find((a) => a.id === openId) ?? null;
-  const shots = app?.screenshots ?? [];
-
-  const open = (id: string) => {
-    setIndex(0);
-    setOpenId(id);
-  };
-  const go = (dir: number) => setIndex((i) => (i + dir + shots.length) % shots.length);
 
   return (
     <>
@@ -73,14 +201,14 @@ export function Apps({ apps, labels }: { apps: AppCard[]; labels: Labels }) {
           <li key={a.id}>
             <button
               type="button"
-              onClick={() => open(a.id)}
+              onClick={() => setOpenId(a.id)}
               className="group block w-full overflow-hidden rounded-2xl border border-rule text-left transition-colors duration-500 hover:border-ink"
             >
               <div className="relative flex aspect-[4/3] items-end justify-center overflow-hidden bg-wash px-8 pt-8">
                 {a.screenshots[0] ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={a.screenshots[0]}
+                    src={a.screenshots[0].src}
                     alt=""
                     loading="lazy"
                     className="max-h-full w-auto max-w-full rounded-t-xl border-x-[5px] border-t-[5px] border-ink object-cover object-top transition-transform duration-700 ease-out-quint group-hover:-translate-y-2"
@@ -107,63 +235,14 @@ export function Apps({ apps, labels }: { apps: AppCard[]; labels: Labels }) {
         ))}
       </ul>
 
-      <Modal open={Boolean(app)} onClose={() => setOpenId(null)} label={app?.name ?? ""} closeLabel={labels.close} wide>
+      <Modal open={Boolean(app)} onClose={() => setOpenId(null)} label={app?.name ?? ""} closeLabel={labels.close} size="xl">
         {app && (
-          <div className="grid md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
-            <div
-              className="relative flex flex-col bg-wash p-5 sm:p-8"
-              onKeyDown={(e) => {
-                if (e.key === "ArrowRight") go(1);
-                if (e.key === "ArrowLeft") go(-1);
-              }}
-            >
-              <div className="relative flex h-[52dvh] items-center justify-center md:h-[64dvh]">
-                {shots.length > 0 ? (
-                  <AnimatePresence mode="wait" initial={false}>
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, x: 16 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -16 }}
-                      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                      className="flex h-full max-w-full items-center justify-center"
-                    >
-                      <Device src={shots[index]} alt={`${app.name}, ${labels.screen} ${index + 1}`} eager />
-                    </motion.div>
-                  </AnimatePresence>
-                ) : (
-                  <AppIcon app={app} className="size-28 rounded-[1.8rem] text-5xl" />
-                )}
-              </div>
-              {shots.length > 1 && (
-                <div className="mt-5 flex items-center gap-3">
-                  <button type="button" onClick={() => go(-1)} aria-label={labels.previous} className="grid size-9 shrink-0 place-items-center rounded-full border border-rule transition-colors hover:border-ink">
-                    <svg viewBox="0 0 16 16" className="size-3.5" aria-hidden><path d="M10 3L5 8l5 5" fill="none" stroke="currentColor" strokeWidth="1.6" /></svg>
-                  </button>
-                  <ol className="flex min-w-0 flex-1 gap-2 overflow-x-auto py-1">
-                    {shots.map((s, i) => (
-                      <li key={s}>
-                        <button
-                          type="button"
-                          onClick={() => setIndex(i)}
-                          aria-label={`${labels.screen} ${i + 1}`}
-                          aria-current={i === index}
-                          className={`block h-14 w-10 overflow-hidden rounded-md border-2 transition-all ${i === index ? "border-ink" : "border-transparent opacity-50 hover:opacity-100"}`}
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={s} alt="" loading="lazy" className="size-full object-cover object-top" />
-                        </button>
-                      </li>
-                    ))}
-                  </ol>
-                  <button type="button" onClick={() => go(1)} aria-label={labels.next} className="grid size-9 shrink-0 place-items-center rounded-full border border-rule transition-colors hover:border-ink">
-                    <svg viewBox="0 0 16 16" className="size-3.5" aria-hidden><path d="M6 3l5 5-5 5" fill="none" stroke="currentColor" strokeWidth="1.6" /></svg>
-                  </button>
-                </div>
-              )}
+          <div className="flex h-full flex-col md:flex-row">
+            <div className="min-h-0 flex-1 bg-wash max-md:basis-[68%]">
+              <Slideshow key={app.id} app={app} labels={labels} />
             </div>
 
-            <div className="p-6 sm:p-8">
+            <aside className="overflow-y-auto border-rule p-6 max-md:flex-1 max-md:border-t md:w-[22rem] md:shrink-0 md:border-l md:p-8 lg:w-[26rem]">
               <div className="flex items-center gap-3 pr-10">
                 <AppIcon app={app} className="size-12 shrink-0 rounded-2xl text-xl" />
                 <div>
@@ -174,7 +253,7 @@ export function Apps({ apps, labels }: { apps: AppCard[]; labels: Labels }) {
                 </div>
               </div>
               {app.tagline && <p className="mt-6 text-lg leading-snug">{app.tagline}</p>}
-              {app.description && <p className="mt-3 leading-relaxed text-muted">{app.description}</p>}
+              {app.description && <p className="mt-3 whitespace-pre-line leading-relaxed text-muted">{app.description}</p>}
               {app.tags.length > 0 && (
                 <ul className="mt-6 flex flex-wrap gap-1.5">
                   {app.tags.map((t) => (
@@ -196,7 +275,7 @@ export function Apps({ apps, labels }: { apps: AppCard[]; labels: Labels }) {
                   </a>
                 )}
               </div>
-            </div>
+            </aside>
           </div>
         )}
       </Modal>

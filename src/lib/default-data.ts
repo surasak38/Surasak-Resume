@@ -133,6 +133,7 @@ export const defaultResume: Resume = {
       url: "",
       repoUrl: "https://github.com/surasak38/Surasak-Resume",
       icon: "",
+      frame: "auto",
       screenshots: [],
     },
   ],

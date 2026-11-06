@@ -45,6 +45,15 @@ export const experienceSchema = z.object({
   highlights: LList,
 });
 
+export const appFrames = ["auto", "phone", "tablet", "browser", "none"] as const;
+export type AppFrame = (typeof appFrames)[number];
+
+/** A screen in an app's slideshow. Older data stored bare links, which are still accepted. */
+const screenshotSchema = z.preprocess(
+  (v) => (typeof v === "string" ? { src: v } : v),
+  z.object({ src: media.refine(Boolean, "Screenshot is missing its image"), caption: L }),
+);
+
 export const appSchema = z.object({
   id,
   name: text.min(1, "App name is required"),
@@ -56,7 +65,8 @@ export const appSchema = z.object({
   url: text.default(""),
   repoUrl: text.default(""),
   icon: media.default(""),
-  screenshots: z.array(media).default([]),
+  frame: z.enum(appFrames).default("auto"),
+  screenshots: z.array(screenshotSchema).default([]),
 });
 
 export const galleryKinds = ["certificate", "training", "competition", "activity"] as const;
@@ -107,6 +117,7 @@ export type Resume = z.infer<typeof resumeSchema>;
 export type Profile = Resume["profile"];
 export type Experience = Resume["experience"][number];
 export type App = Resume["apps"][number];
+export type Screenshot = App["screenshots"][number];
 export type GalleryItem = Resume["gallery"][number];
 export type SkillGroup = Resume["skills"][number];
 export type Education = Resume["education"][number];

@@ -8,7 +8,9 @@ import { formatPeriod, tr } from "@/lib/i18n";
 import {
   galleryKinds,
   resumeSchema,
+  appFrames,
   type App,
+  type AppFrame,
   type Education,
   type Experience,
   type GalleryItem,
@@ -19,7 +21,7 @@ import {
   type SkillGroup,
   type SpokenLanguage,
 } from "@/lib/schema";
-import { FileField, ImagesField, LocalizedField, LocalizedLines, SelectField, TagsField, TextField, Toggle } from "./fields";
+import { FileField, LocalizedField, ScreensField, LocalizedLines, SelectField, TagsField, TextField, Toggle } from "./fields";
 import { ListEditor } from "./list-editor";
 
 const tabs = [
@@ -50,6 +52,14 @@ const kindLabels: Record<GalleryKind, string> = {
   training: "Training",
   competition: "Competition",
   activity: "Activity",
+};
+
+const frameLabels: Record<AppFrame, string> = {
+  auto: "Auto",
+  phone: "Phone",
+  tablet: "Tablet",
+  browser: "Browser window",
+  none: "No frame",
 };
 
 const empty = () => ({ en: "", th: "" });
@@ -242,7 +252,7 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
                 <ListEditor<App>
                   items={data.apps}
                   onChange={(v) => patch("apps", v)}
-                  create={() => ({ name: "", year: "", platform: "", tagline: empty(), description: empty(), tags: [], url: "", repoUrl: "", icon: "", screenshots: [] })}
+                  create={() => ({ name: "", year: "", platform: "", tagline: empty(), description: empty(), tags: [], url: "", repoUrl: "", icon: "", frame: "auto", screenshots: [] })}
                   addLabel="Add an app"
                   emptyText="No apps yet."
                   title={(a) => a.name}
@@ -260,8 +270,15 @@ export function Editor({ initial, storage }: { initial: Resume; storage: string 
                       <TagsField className="sm:col-span-2" label="Built with" hint="Separate with commas" value={a.tags} onChange={(tags) => set({ tags })} />
                       <TextField label="App link" placeholder="App Store, Play Store or website" value={a.url} onChange={(url) => set({ url })} />
                       <TextField label="Source code link" placeholder="https://github.com/…" value={a.repoUrl} onChange={(repoUrl) => set({ repoUrl })} />
-                      <FileField className="sm:col-span-2" label="App icon" hint="Square image" aspect="aspect-square" value={a.icon} onChange={(icon) => set({ icon })} />
-                      <ImagesField className="sm:col-span-2" label="Screenshots / mockups" hint="Add several at once. Drag files here, or use the arrows to reorder. The first one is the card image." value={a.screenshots} onChange={(screenshots) => set({ screenshots })} />
+                      <FileField label="App icon" hint="Square image" aspect="aspect-square" value={a.icon} onChange={(icon) => set({ icon })} />
+                      <SelectField<AppFrame>
+                        label="Screenshot frame"
+                        hint="Auto: phone frame for tall screens, browser frame for wide ones"
+                        value={a.frame}
+                        onChange={(frame) => set({ frame })}
+                        options={appFrames.map((f) => ({ value: f, label: frameLabels[f] }))}
+                      />
+                      <ScreensField className="sm:col-span-2" label="Screenshots / mockups" hint="Visitors swipe through these in order. Drag rows to reorder; the first one is the card image." value={a.screenshots} onChange={(screenshots) => set({ screenshots })} />
                     </>
                   )}
                 </ListEditor>
