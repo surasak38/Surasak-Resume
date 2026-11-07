@@ -12,6 +12,7 @@ import { ThemeToggle } from "@/components/site/theme-toggle";
 import { Timeline } from "@/components/site/timeline";
 import { dict, formatPeriod, formatPoint, pickLocale, tr, trList, type Locale } from "@/lib/i18n";
 import { getPublicProfile } from "@/lib/profiles";
+import { currentUser } from "@/lib/supabase/server";
 import { galleryKinds } from "@/lib/schema";
 
 type Props = PageProps<"/[handle]/profile">;
@@ -52,6 +53,23 @@ export default function ProfilePage(props: Props) {
     <Suspense fallback={<div className="min-h-dvh" />}>
       <ProfileView {...props} />
     </Suspense>
+  );
+}
+
+/** An Edit button, shown only to the profile's owner. Reads the session, so it streams in apart from the cached page. */
+async function OwnerEdit({ ownerId, handle, label }: { ownerId: string; handle: string; label: string }) {
+  const user = await currentUser();
+  if (user?.id !== ownerId) return null;
+  return (
+    <Link
+      href={`/${handle}/admin`}
+      className="flex h-9 items-center gap-1.5 rounded-full bg-ink px-3.5 text-xs font-medium text-paper transition-opacity hover:opacity-85"
+    >
+      <svg viewBox="0 0 20 20" className="size-3.5" aria-hidden>
+        <path d="M13.5 3.5l3 3L7 16H4v-3z M11.5 5.5l3 3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      </svg>
+      {label}
+    </Link>
   );
 }
 
@@ -124,6 +142,9 @@ async function ProfileView({ params, searchParams }: Props) {
               {t.switchToShort}
             </Link>
             <ThemeToggle />
+            <Suspense fallback={null}>
+              <OwnerEdit ownerId={found.id} handle={handle} label={t.editProfile} />
+            </Suspense>
           </nav>
         </div>
       </header>
