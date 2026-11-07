@@ -68,3 +68,23 @@ export async function setVisibility(isPublic: boolean): Promise<VisibilityResult
   updateTag(DIRECTORY_TAG);
   return { ok: true, isPublic };
 }
+
+export type ViewStats = {
+  total: number;
+  visitors: number;
+  today: number;
+  last7: number;
+  last30: number;
+  daily: { day: string; views: number }[];
+};
+export type ViewStatsResult = { ok: true; stats: ViewStats } | Fail;
+
+/** The signed-in owner's profile views (the owner's own visits are never counted). */
+export async function getViewStats(): Promise<ViewStatsResult> {
+  const user = await currentUser();
+  if (!user) return SESSION_EXPIRED;
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("my_profile_views", { p_days: 30 });
+  if (error || !data) return { ok: false, error: `Loading views failed: ${error?.message ?? "no data"}` };
+  return { ok: true, stats: data as ViewStats };
+}

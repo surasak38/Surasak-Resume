@@ -29,6 +29,12 @@ Supabase project `surasak-resume` (Singapore):
 
 Public profile pages are cached per handle and refreshed when the owner publishes.
 
+### Profile views
+
+- **`public.profile_views`**: one row per visitor per profile per day (Thailand time), so refreshing adds nothing. No direct access; RLS is on with no policies.
+- **`record_profile_view(...)`**: called only by `POST /api/view` on the server with `VIEW_KEY`, which must match `private.app_secrets` (`view_key`). It skips the signed-in owner and lets one network (keyed hash of the IP) add at most 3 visitors per profile per day. Bots are filtered by user agent.
+- **`my_profile_views(days)`**: the signed-in owner's totals and daily series, shown in the editor's **Views** tab.
+
 ## Run locally
 
 ```bash
@@ -43,6 +49,7 @@ npm run dev
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Everything |
 | `LEGACY_HANDLE` | Where the old `/en`, `/th` and `/admin` links redirect (default `surasak.jrs`) |
+| `VIEW_KEY` | Recording profile views (same value as `private.app_secrets.view_key` in Supabase) |
 | `NEXT_PUBLIC_SITE_URL` | Public address, used for share links (default `https://eresume-lab.vercel.app`) |
 
 ## Google sign-in setup

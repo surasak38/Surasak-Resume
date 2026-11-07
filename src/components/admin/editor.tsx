@@ -31,6 +31,7 @@ import { ListEditor } from "./list-editor";
 import { ResumePdf } from "./resume-pdf";
 import { Settings } from "./settings";
 import { UploadOwner } from "./upload";
+import { Views } from "./views";
 
 const tabs = [
   { key: "profile", label: "Profile" },
@@ -42,6 +43,7 @@ const tabs = [
   { key: "education", label: "Education" },
   { key: "links", label: "Links" },
   { key: "sections", label: "Visibility" },
+  { key: "views", label: "Views" },
   { key: "settings", label: "Link & account" },
   { key: "backup", label: "Backup & AI" },
 ] as const;
@@ -482,6 +484,12 @@ export function Editor({ initial, handle, userId, email, isPublic }: EditorProps
                     <Toggle key={k} label={sectionLabels[k]} checked={data.sections[k]} onChange={(v) => patch("sections", { ...data.sections, [k]: v })} />
                   ))}
                 </div>
+              </Panel>
+            )}
+
+            {tab === "views" && (
+              <Panel title="Views" description="How many people have opened your public profile.">
+                <Views handle={handle} />
               </Panel>
             )}
 

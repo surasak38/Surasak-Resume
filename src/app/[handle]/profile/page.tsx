@@ -10,6 +10,7 @@ import { Photos } from "@/components/site/photos";
 import { Section } from "@/components/site/section";
 import { ThemeToggle } from "@/components/site/theme-toggle";
 import { Timeline } from "@/components/site/timeline";
+import { ViewTracker } from "@/components/site/view-tracker";
 import { dict, formatPeriod, formatPoint, pickLocale, tr, trList, type Locale } from "@/lib/i18n";
 import { getPublicProfile } from "@/lib/profiles";
 import { currentUser } from "@/lib/supabase/server";
@@ -114,6 +115,7 @@ async function ProfileView({ params, searchParams }: Props) {
 
   return (
     <>
+      <ViewTracker handle={handle} />
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-ink focus:px-3 focus:py-2 focus:text-paper">
         {lang === "th" ? "ข้ามไปเนื้อหา" : "Skip to content"}
       </a>
