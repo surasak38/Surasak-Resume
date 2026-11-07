@@ -30,6 +30,7 @@ const copy = {
     searchLabel: "Search by name, role or place",
     searchPlaceholder: "e.g. full-stack, Bangkok, Surasak",
     search: "Search",
+    views: (n: number) => `${n.toLocaleString("en-US")} ${n === 1 ? "view" : "views"}`,
     suggestions: "Suggested people",
     noMatch: "No one matches yet. Keep typing or try another word.",
     seeAll: "See all results for “{q}”",
@@ -58,6 +59,7 @@ const copy = {
     searchLabel: "ค้นหาจากชื่อ ตำแหน่ง หรือสถานที่",
     searchPlaceholder: "เช่น full-stack, กรุงเทพ, สุรศักดิ์",
     search: "ค้นหา",
+    views: (n: number) => `เข้าชม ${n.toLocaleString("en-US")} ครั้ง`,
     suggestions: "คนที่แนะนำ",
     noMatch: "ยังไม่พบคนที่ตรงกัน ลองพิมพ์ต่อหรือใช้คำอื่น",
     seeAll: "ดูผลการค้นหาทั้งหมดของ “{q}”",
@@ -119,6 +121,15 @@ async function AccountLinks({ lang }: { lang: Locale }) {
   );
 }
 
+function EyeIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="size-3.5" aria-hidden>
+      <path d="M1.5 10S4.5 4 10 4s8.5 6 8.5 6-3 6-8.5 6S1.5 10 1.5 10z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <circle cx="10" cy="10" r="2.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
 function Monogram({ name }: { name: string }) {
   return (
     <span className="grid size-full place-items-center bg-ink font-display text-2xl font-bold text-paper" style={{ fontVariationSettings: '"wdth" 75' }}>
@@ -160,6 +171,12 @@ async function Results({ q, lang }: { q: string; lang: Locale }) {
                       /{p.handle}
                       {tr(p.location, lang) && `, ${tr(p.location, lang)}`}
                     </span>
+                    {p.views ? (
+                      <span className="mt-1 inline-flex items-center gap-1 text-xs tabular-nums text-muted">
+                        <EyeIcon />
+                        {t.views(p.views)}
+                      </span>
+                    ) : null}
                   </span>
                 </Link>
               </li>
@@ -243,7 +260,7 @@ async function Landing({ searchParams }: Props) {
             key={q}
             initial={q}
             lang={lang}
-            labels={{ label: t.searchLabel, placeholder: t.searchPlaceholder, search: t.search, suggestions: t.suggestions, noMatch: t.noMatch, seeAll: t.seeAll }}
+            labels={{ label: t.searchLabel, placeholder: t.searchPlaceholder, search: t.search, suggestions: t.suggestions, noMatch: t.noMatch, seeAll: t.seeAll, viewsWord: lang === "th" ? "ครั้ง" : "views" }}
           />
           <Suspense fallback={<p className="mt-8 text-sm text-muted">…</p>}>
             <Results q={q} lang={lang} />

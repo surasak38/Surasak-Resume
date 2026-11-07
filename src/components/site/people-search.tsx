@@ -6,7 +6,7 @@ import { suggestPeople } from "@/app/search-actions";
 import type { ProfileCard } from "@/lib/profiles";
 
 type Lang = "en" | "th";
-type Labels = { label: string; placeholder: string; search: string; suggestions: string; noMatch: string; seeAll: string };
+type Labels = { label: string; placeholder: string; search: string; suggestions: string; noMatch: string; seeAll: string; viewsWord: string };
 
 const pick = (v: { en: string; th: string }, lang: Lang) => v[lang] || v[lang === "en" ? "th" : "en"];
 
@@ -155,6 +155,11 @@ export function PeopleSearch({ initial, lang, labels }: { initial: string; lang:
                         {headline && <>, {headline}</>}
                       </span>
                     </span>
+                    {p.views ? (
+                      <span className="shrink-0 text-xs tabular-nums text-muted" aria-label={`${p.views} ${labels.viewsWord}`}>
+                        {p.views.toLocaleString("en-US")} {labels.viewsWord}
+                      </span>
+                    ) : null}
                   </li>
                 );
               })}

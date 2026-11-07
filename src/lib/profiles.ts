@@ -17,6 +17,8 @@ export type ProfileCard = {
   headline: { en: string; th: string };
   location: { en: string; th: string };
   photo: string;
+  /** Total views, or null when the person hides their count. */
+  views: number | null;
 };
 
 function parseResume(raw: unknown): Resume {
@@ -45,7 +47,7 @@ export async function getPublicProfile(handle: string): Promise<PublicProfile | 
 function toCard(row: { handle: string; profile: Record<string, unknown> | null }): ProfileCard {
   const p = (row.profile ?? {}) as Record<string, { en?: string; th?: string } | string | undefined>;
   const loc = (v: unknown) => ({ en: (v as { en?: string })?.en ?? "", th: (v as { th?: string })?.th ?? "" });
-  return { handle: row.handle, name: loc(p.name), headline: loc(p.headline), location: loc(p.location), photo: typeof p.photo === "string" ? p.photo : "" };
+  return { handle: row.handle, name: loc(p.name), headline: loc(p.headline), location: loc(p.location), photo: typeof p.photo === "string" ? p.photo : "", views: null };
 }
 
 /** Public profiles matching a search, or the most recently updated ones when the query is empty. */
@@ -62,7 +64,13 @@ export async function searchProfiles(query: string, limit = 24): Promise<Profile
   }
   const { data, error } = await req.order("updated_at", { ascending: false }).limit(limit);
   if (error) throw new Error(`Search failed: ${error.message}`);
-  return (data ?? []).map((r) => toCard(r as { handle: string; profile: Record<string, unknown> | null }));
+  const cards = (data ?? []).map((r) => toCard(r as { handle: string; profile: Record<string, unknown> | null }));
+  if (!cards.length) return cards;
+
+  // View totals in one call; a failure here only hides the numbers.
+  const { data: counts } = await createPublicClient().rpc("profile_view_counts", { p_handles: cards.map((c) => c.handle) });
+  const byHandle = new Map((counts as { handle: string; views: number }[] | null)?.map((c) => [c.handle, Number(c.views)]) ?? []);
+  return cards.map((c) => ({ ...c, views: byHandle.get(c.handle) ?? null }));
 }
 
 export const viewsTag = (handle: string) => `views:${handle}`;
