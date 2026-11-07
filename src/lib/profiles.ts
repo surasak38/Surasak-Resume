@@ -65,6 +65,18 @@ export async function searchProfiles(query: string, limit = 24): Promise<Profile
   return (data ?? []).map((r) => toCard(r as { handle: string; profile: Record<string, unknown> | null }));
 }
 
+export const viewsTag = (handle: string) => `views:${handle}`;
+
+/** Total views of a public profile. Cached for a few minutes, so the number on the page lags slightly. */
+export async function getViewCount(handle: string): Promise<number> {
+  "use cache";
+  cacheTag(viewsTag(handle));
+  cacheLife("minutes");
+  const { data, error } = await createPublicClient().rpc("profile_view_count", { p_handle: handle });
+  if (error) return 0;
+  return Number(data) || 0;
+}
+
 /** The signed-in user's own profile row, read through RLS. */
 export async function getOwnProfile(userId: string) {
   const supabase = await createClient();

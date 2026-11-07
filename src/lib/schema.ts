@@ -107,7 +107,7 @@ export const educationSchema = z.object({
 
 export const photoSchema = z.object({ src: media.refine(Boolean, "Photo is missing its image"), caption: L });
 
-export const sectionKeys = ["about", "experience", "apps", "gallery", "photos", "skills", "education", "contact"] as const;
+export const sectionKeys = ["about", "experience", "apps", "gallery", "photos", "skills", "education", "contact", "views"] as const;
 export type SectionKey = (typeof sectionKeys)[number];
 
 export const resumeSchema = z.object({

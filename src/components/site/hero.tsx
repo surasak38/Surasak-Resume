@@ -12,6 +12,8 @@ export type HeroProps = {
   available: boolean;
   availabilityText: string;
   links: { id: string; label: string; url: string }[];
+  /** Extra line in the meta column, e.g. the view count. */
+  extra?: React.ReactNode;
 };
 
 function Line({
@@ -43,7 +45,7 @@ function Line({
   );
 }
 
-export function Hero({ nameLines, altName, headline, location, available, availabilityText, links }: HeroProps) {
+export function Hero({ nameLines, altName, headline, location, available, availabilityText, links, extra }: HeroProps) {
   const reduce = useReducedMotion();
   const fade = (delay: number) =>
     reduce ? {} : { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.9, ease, delay } };
@@ -93,6 +95,7 @@ export function Hero({ nameLines, altName, headline, location, available, availa
               {availabilityText}
             </span>
           )}
+          {extra}
           {links.length > 0 && (
             <ul className="flex flex-wrap gap-x-5 gap-y-1">
               {links.map((l) => (

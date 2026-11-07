@@ -12,7 +12,7 @@ import { ThemeToggle } from "@/components/site/theme-toggle";
 import { Timeline } from "@/components/site/timeline";
 import { ViewTracker } from "@/components/site/view-tracker";
 import { dict, formatPeriod, formatPoint, pickLocale, tr, trList, type Locale } from "@/lib/i18n";
-import { getPublicProfile } from "@/lib/profiles";
+import { getPublicProfile, getViewCount } from "@/lib/profiles";
 import { currentUser } from "@/lib/supabase/server";
 import { galleryKinds } from "@/lib/schema";
 
@@ -54,6 +54,21 @@ export default function ProfilePage(props: Props) {
     <Suspense fallback={<div className="min-h-dvh" />}>
       <ProfileView {...props} />
     </Suspense>
+  );
+}
+
+/** Total views, hidden until there is at least one. */
+async function ViewCount({ handle, label }: { handle: string; label: (n: number) => string }) {
+  const n = await getViewCount(handle);
+  if (!n) return null;
+  return (
+    <span className="inline-flex items-center gap-1.5 text-muted tabular-nums">
+      <svg viewBox="0 0 20 20" className="size-4" aria-hidden>
+        <path d="M1.5 10S4.5 4 10 4s8.5 6 8.5 6-3 6-8.5 6S1.5 10 1.5 10z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+        <circle cx="10" cy="10" r="2.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      </svg>
+      {label(n)}
+    </span>
   );
 }
 
@@ -160,6 +175,13 @@ async function ProfileView({ params, searchParams }: Props) {
           available={profile.available}
           availabilityText={tr(profile.availabilityText, lang)}
           links={data.links}
+          extra={
+            sections.views ? (
+              <Suspense fallback={null}>
+                <ViewCount handle={handle} label={t.views} />
+              </Suspense>
+            ) : null
+          }
         />
 
         <div id="main" />

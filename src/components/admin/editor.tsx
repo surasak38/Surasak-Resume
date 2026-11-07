@@ -58,6 +58,7 @@ const sectionLabels: Record<SectionKey, string> = {
   skills: "Skills & languages",
   education: "Education",
   contact: "Contact",
+  views: "View count (shown under your name)",
 };
 
 const kindLabels: Record<GalleryKind, string> = {

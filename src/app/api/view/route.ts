@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
-import { HANDLE_PATTERN } from "@/lib/profiles";
+import { revalidateTag } from "next/cache";
+import { HANDLE_PATTERN, viewsTag } from "@/lib/profiles";
 import { createPublicClient } from "@/lib/supabase/public";
 import { currentUser } from "@/lib/supabase/server";
 
@@ -26,13 +27,15 @@ export async function POST(request: NextRequest) {
   const ipHash = createHash("sha256").update(`${key}:${ip}`).digest("hex");
   const viewer = await currentUser().catch(() => null);
 
-  await createPublicClient().rpc("record_profile_view", {
+  const { data: counted } = await createPublicClient().rpc("record_profile_view", {
     p_key: key,
     p_handle: handle,
     p_visitor: visitor,
     p_ip_hash: ipHash,
     p_viewer: viewer?.id ?? null,
   });
+  // Refresh the count shown on the profile; visitors see the cached number while it updates.
+  if (counted) revalidateTag(viewsTag(handle), "max");
 
   const res = new NextResponse(null, { status: 204 });
   if (visitor !== existing) {
