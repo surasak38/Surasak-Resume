@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { Suspense } from "react";
+import { PeopleSearch } from "@/components/site/people-search";
 import { ThemeToggle } from "@/components/site/theme-toggle";
 import { pickLocale, tr, type Locale } from "@/lib/i18n";
 import { getHandleFor, searchProfiles } from "@/lib/profiles";
@@ -29,6 +30,9 @@ const copy = {
     searchLabel: "Search by name, role or place",
     searchPlaceholder: "e.g. full-stack, Bangkok, Surasak",
     search: "Search",
+    suggestions: "Suggested people",
+    noMatch: "No one matches yet. Keep typing or try another word.",
+    seeAll: "See all results for “{q}”",
     recent: "Recently updated",
     results: (n: number, q: string) => `${n} ${n === 1 ? "person" : "people"} matching “${q}”`,
     none: (q: string) => `No one matches “${q}”. Try a shorter word or a different spelling.`,
@@ -54,6 +58,9 @@ const copy = {
     searchLabel: "ค้นหาจากชื่อ ตำแหน่ง หรือสถานที่",
     searchPlaceholder: "เช่น full-stack, กรุงเทพ, สุรศักดิ์",
     search: "ค้นหา",
+    suggestions: "คนที่แนะนำ",
+    noMatch: "ยังไม่พบคนที่ตรงกัน ลองพิมพ์ต่อหรือใช้คำอื่น",
+    seeAll: "ดูผลการค้นหาทั้งหมดของ “{q}”",
     recent: "อัปเดตล่าสุด",
     results: (n: number, q: string) => `พบ ${n} คนที่ตรงกับ “${q}”`,
     none: (q: string) => `ไม่พบคนที่ตรงกับ “${q}” ลองใช้คำที่สั้นลงหรือสะกดแบบอื่น`,
@@ -232,21 +239,12 @@ async function Landing({ searchParams }: Props) {
           <h2 id="people-title" className="font-display text-4xl font-bold tracking-tight md:text-5xl" style={{ fontVariationSettings: '"wdth" 80' }}>
             {t.findTitle}
           </h2>
-          <form action="/#people" method="get" role="search" className="mt-6 flex max-w-2xl gap-2">
-            <input type="hidden" name="lang" value={lang} />
-            <label htmlFor="q" className="sr-only">
-              {t.searchLabel}
-            </label>
-            <input
-              id="q"
-              name="q"
-              type="search"
-              defaultValue={q}
-              placeholder={t.searchPlaceholder}
-              className="min-w-0 flex-1 rounded-full border border-rule bg-paper px-5 py-3 outline-none transition-colors focus:border-ink"
-            />
-            <button className="rounded-full bg-ink px-6 py-3 font-medium text-paper">{t.search}</button>
-          </form>
+          <PeopleSearch
+            key={q}
+            initial={q}
+            lang={lang}
+            labels={{ label: t.searchLabel, placeholder: t.searchPlaceholder, search: t.search, suggestions: t.suggestions, noMatch: t.noMatch, seeAll: t.seeAll }}
+          />
           <Suspense fallback={<p className="mt-8 text-sm text-muted">…</p>}>
             <Results q={q} lang={lang} />
           </Suspense>

@@ -6,7 +6,7 @@ A Next.js 16 app where anyone can sign up and publish a black-and-white, bilingu
 
 | URL | What it is |
 | --- | --- |
-| `/` | Landing page and people search (`?q=`, `?lang=en|th`) |
+| `/` | Landing page and people search with live suggestions (top 5 as you type; `?q=`, `?lang=en|th`) |
 | `/signup`, `/login` | Google sign-in, Gmail accounts only. `/signup?handle=` pre-fills the link, `/login?next=` returns you after sign-in |
 | `/auth/confirm` | Google sign-in callback: starts the session and claims the link picked at sign-up |
 | `/<handle>/profile` | Public resume. `?lang=en|th`, `?app=<id>&screen=<n>`, `?photos=all|<n>`, `?cert=<id>`, `?certs=<kind>` |
