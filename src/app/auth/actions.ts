@@ -2,12 +2,11 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { z } from "zod";
 import { HANDLE_PATTERN } from "@/lib/profiles";
 import { safeNext } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
 
-export type AuthState = { error?: string; notice?: string; values?: Record<string, string> };
+export type AuthState = { error?: string };
 
 async function origin() {
   const h = await headers();
@@ -16,60 +15,34 @@ async function origin() {
   return `${proto}://${host}`;
 }
 
-export async function signIn(_: AuthState, form: FormData): Promise<AuthState> {
-  const email = String(form.get("email") ?? "").trim();
-  const password = String(form.get("password") ?? "");
+/**
+ * Sends the browser to Google. Accounts are Gmail-only: the database refuses any other new sign-up.
+ * From the sign-up page, `handle` carries the link the person picked; the callback claims it.
+ */
+export async function signInWithGoogle(_: AuthState, form: FormData): Promise<AuthState> {
   const next = safeNext(form.get("next"), "");
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) {
-    return {
-      error: /confirm/i.test(error.message)
-        ? "Confirm your email first. Check your inbox for the link."
-        : "That email and password don't match an account.",
-      values: { email },
-    };
+  const handle = String(form.get("handle") ?? "").trim().toLowerCase();
+  if (form.has("handle") && !HANDLE_PATTERN.test(handle)) {
+    return { error: "Links use 3–30 lowercase letters, numbers, dots, dashes or underscores, and start and end with a letter or number." };
   }
-  if (next) redirect(next);
-  const { data: row } = await supabase.from("profiles").select("handle").eq("id", data.user.id).maybeSingle();
-  redirect(row?.handle ? `/${row.handle}/admin` : "/");
-}
-
-const signUpSchema = z.object({
-  name: z.string().trim().min(1, "Enter your name.").max(80),
-  handle: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .regex(HANDLE_PATTERN, "Links use 3–30 lowercase letters, numbers, dots, dashes or underscores, and start and end with a letter or number."),
-  email: z.email("Enter a valid email address."),
-  password: z.string().min(8, "Use at least 8 characters for your password."),
-});
-
-export async function signUp(_: AuthState, form: FormData): Promise<AuthState> {
-  const values = Object.fromEntries(["name", "handle", "email"].map((k) => [k, String(form.get(k) ?? "")]));
-  const parsed = signUpSchema.safeParse({ ...values, password: String(form.get("password") ?? "") });
-  if (!parsed.success) return { error: parsed.error.issues[0].message, values };
-  const { name, handle, email, password } = parsed.data;
 
   const supabase = await createClient();
-  const { data: available, error: rpcError } = await supabase.rpc("handle_available", { candidate: handle });
-  if (rpcError) return { error: "Couldn't check that link. Try again.", values };
-  if (!available) return { error: `"${handle}" is taken or reserved. Choose another link.`, values };
+  if (handle) {
+    const { data: available, error } = await supabase.rpc("handle_available", { candidate: handle });
+    if (error) return { error: "Couldn't check that link. Try again." };
+    if (!available) return { error: `"${handle}" is taken or reserved. Choose another link.` };
+  }
 
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: { handle, name },
-      emailRedirectTo: `${await origin()}/auth/confirm?next=${encodeURIComponent(`/${handle}/admin`)}`,
-    },
+  const callback = new URL("/auth/confirm", await origin());
+  if (next) callback.searchParams.set("next", next);
+  if (handle) callback.searchParams.set("handle", handle);
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: callback.toString(), queryParams: { prompt: "select_account" } },
   });
-  if (error) return { error: error.message, values };
-
-  // With email confirmation off, Supabase signs the user in straight away.
-  if (data.session) redirect(`/${handle}/admin`);
-  return { notice: `We sent a confirmation link to ${email}. Open it to start editing your resume.`, values };
+  if (error || !data.url) return { error: "Couldn't reach Google sign-in. Try again." };
+  redirect(data.url);
 }
 
 export async function signOut() {

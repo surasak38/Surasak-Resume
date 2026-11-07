@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
-import { signUp, type AuthState } from "@/app/auth/actions";
-import { inputCls } from "@/components/auth/auth-shell";
+import { signInWithGoogle, type AuthState } from "@/app/auth/actions";
+import { GoogleButton } from "@/components/auth/google-button";
 import { createClient } from "@/lib/supabase/client";
 
 const PATTERN = /^[a-z0-9](?:[a-z0-9._-]{1,28}[a-z0-9])$/;
@@ -13,7 +13,7 @@ type Check = { handle: string; state: "idle" | "checking" | "free" | "taken" | "
 
 export function SignupForm() {
   const params = useSearchParams();
-  const [state, action, pending] = useActionState<AuthState, FormData>(signUp, {});
+  const [state, action] = useActionState<AuthState, FormData>(signInWithGoogle, {});
   const [handle, setHandle] = useState(() => (params.get("handle") ?? "").toLowerCase());
   const [check, setCheck] = useState<Check>({ handle: "", state: "idle" });
 
@@ -38,21 +38,9 @@ export function SignupForm() {
     invalid: "Use lowercase letters, numbers, dot, dash or underscore, starting and ending with a letter or number.",
   }[status];
 
-  if (state.notice) {
-    return (
-      <div role="status" className="mt-8 rounded-lg border border-ink p-5">
-        <p className="font-medium">Check your email</p>
-        <p className="mt-1 text-sm text-muted">{state.notice}</p>
-      </div>
-    );
-  }
-
   return (
     <form action={action} className="mt-8 space-y-4">
-      <label className="block">
-        <span className="text-sm">Your name</span>
-        <input name="name" required autoComplete="name" defaultValue={state.values?.name} className={inputCls} />
-      </label>
+      <input type="hidden" name="next" value={params.get("next") ?? ""} />
       <label className="block">
         <span className="text-sm">Your link</span>
         <div className="mt-1.5 flex items-center rounded-md border border-rule bg-paper focus-within:border-ink">
@@ -75,25 +63,13 @@ export function SignupForm() {
           {message}
         </span>
       </label>
-      <label className="block">
-        <span className="text-sm">Email</span>
-        <input type="email" name="email" required autoComplete="email" defaultValue={state.values?.email} className={inputCls} />
-      </label>
-      <label className="block">
-        <span className="text-sm">Password</span>
-        <input type="password" name="password" required minLength={8} autoComplete="new-password" className={inputCls} />
-      </label>
       {state.error && (
         <p role="alert" className="text-sm">
           {state.error}
         </p>
       )}
-      <button
-        disabled={pending || status === "taken" || status === "invalid"}
-        className="w-full rounded-md bg-ink py-2.5 font-medium text-paper transition-opacity disabled:opacity-50"
-      >
-        {pending ? "Creating…" : "Create my resume"}
-      </button>
+      <GoogleButton label="Sign up with Google" disabled={status === "taken" || status === "invalid"} />
+      <p className="text-xs text-muted">Only Gmail accounts can sign up. Your name, email and Google photo fill in your resume to start.</p>
       <p className="text-sm text-muted">
         Already have one?{" "}
         <Link href="/login" className="text-ink underline underline-offset-4">

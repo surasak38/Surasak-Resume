@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Create your resume" };
 
 export default function SignupPage() {
   return (
-    <AuthShell title="Create your resume" intro="Pick the link people will use to find you. You can change it later.">
+    <AuthShell title="Create your resume" intro="Pick the link people will use to find you, then sign up with your Gmail. You can change the link later.">
       <Suspense>
         <SignupForm />
       </Suspense>
